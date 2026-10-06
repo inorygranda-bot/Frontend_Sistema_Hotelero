@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function Cabecera() {
+export default function Cabecera() {
   return (
     <header className="cabecera-superior">
       <button type="button" className="boton-menu-movil" aria-label="Abrir menú">
