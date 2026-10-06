@@ -1,0 +1,161 @@
+/* Botón Hamburguesa para Teléfonos */
+.boton-menu-movil {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1001;
+  background-color: var(--color-fondo-menu, #0B132B);
+  color: #FFFFFF;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Capa Oscura de Fondo */
+.capa-fondo {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.capa-fondo.activo {
+  display: block;
+  opacity: 1;
+}
+
+/* Menú Lateral Principal */
+.contenedor-menu {
+  width: 260px;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background-color: var(--color-fondo-menu, #0B132B);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.25rem 1rem;
+  z-index: 1000;
+  transition: transform 0.3s ease;
+}
+
+/* Encabezado del Menú (Logo) */
+.encabezado-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 1.5rem;
+  color: #FFFFFF;
+}
+
+.caja-icono-logo {
+  margin: 0;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  background-color: var(--azul-principal, #2563EB);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.texto-logo {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 1rem;
+  font-weight: normal;
+}
+
+.texto-logo strong {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.texto-logo small {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.5px;
+}
+
+/* Navegación y Lista de Opciones */
+.navegacion-principal {
+  flex-grow: 1;
+}
+
+.lista-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lista-menu a,
+.pie-menu a {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Efecto al pasar el cursor (Hover) */
+.lista-menu a:hover,
+.pie-menu a:hover {
+  color: #FFFFFF;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Opción Seleccionada (Activa) */
+.lista-menu a.activo {
+  background-color: var(--azul-principal, #2563EB);
+  color: #FFFFFF;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.lista-menu a svg,
+.pie-menu a svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* Sección Inferior del Menú */
+.pie-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 1rem;
+}
+
+/* Estilos para Pantallas de Teléfono (Móviles) */
+@media (max-width: 768px) {
+  .boton-menu-movil {
+    display: block;
+  }
+
+  .contenedor-menu {
+    transform: translateX(-100%);
+  }
+
+  .contenedor-menu.activo {
+    transform: translateX(0);
+  }
+}
