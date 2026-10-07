@@ -31,7 +31,7 @@ Integrantes:
 
 ### 1. Clonar el repositorio y entrar al proyecto
 ```bash
-git clone 
+git clone https://github.com/inorygranda-bot/Frontend_Sistema_Hotelero.git
 cd Frontend_Sistema_Hotelero/frontend-hotel
 ```
 
