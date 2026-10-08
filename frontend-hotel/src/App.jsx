@@ -3,13 +3,14 @@ import MenuLateral from './componentes/menu_lateral';
 import Cabecera from './componentes/cabecera';
 import Huespedes from './componentes/Vistas/huespedes';
 import Tarifas from './componentes/Vistas/tarifas';
+import Habitaciones from './componentes/Vistas/Habitaciones';  // ← Importa Habitaciones
 import './App.css';
 
 function App() {
   const [menuColapsado, setMenuColapsado] = useState(false);
-  // Estado para saber cuál vista está seleccionada
-  const [vistaActual, setVistaActual] = useState('tarifas');
-  const [vistaActual, setVistaActual] = useState('huespedes');
+  
+  // Solo UNA declaración de vistaActual
+  const [vistaActual, setVistaActual] = useState('habitaciones'); // Puedes poner 'huespedes', 'tarifas' o 'habitaciones'
 
   const toggleMenu = () => {
     setMenuColapsado(!menuColapsado);
@@ -28,8 +29,8 @@ function App() {
           {/* Renderizado condicional de las vistas */}
           {vistaActual === 'tarifas' && <Tarifas />}
           {vistaActual === 'huespedes' && <Huespedes />}
+          {vistaActual === 'habitaciones' && <Habitaciones />}  {/* ← Agrega esta línea */}
           {vistaActual === 'inicio' && <section><h2>Vista de Inicio</h2></section>}
-          {/* A medida que crees Reservas, Finanzas, etc., las agregas aquí */}
         </article>
       </section>
     </main>
