@@ -2,7 +2,6 @@
    ESTILOS DEL MÓDULO DE GESTIÓN DE TARIFAS (CATÁLOGO Y FIGMA MODAL)
    ========================================================================== */
 
-<<<<<<< HEAD
 /* Icono SVG genérico */
 .icon-svg {
   display: inline-block;
@@ -23,8 +22,6 @@
   margin: 0 auto 0.5rem auto;
 }
 
-=======
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
 .tarifas-vista-container {
   display: flex;
   flex-direction: column;
@@ -117,7 +114,6 @@
   color: #64748b;
 }
 
-<<<<<<< HEAD
 /* Píldora BCV variante compacta (Modales) */
 .bcv-exchange-badge.bcv-exchange-badge-sm {
   padding: 0.45rem 0.85rem;
@@ -136,8 +132,6 @@
   font-size: 0.68rem;
 }
 
-=======
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
 /* 2. Tarjetas KPI Superiores */
 .kpi-grid {
   display: grid;
@@ -187,7 +181,6 @@
   color: #64748b;
 }
 
-<<<<<<< HEAD
 .kpi-equiv-bs {
   color: #2563eb;
 }
@@ -227,8 +220,6 @@
   color: #94a3b8;
 }
 
-=======
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
 /* 3. Barra de Búsqueda y Filtros */
 .crud-toolbar {
   display: flex;
@@ -460,7 +451,6 @@
   color: #dc2626;
 }
 
-<<<<<<< HEAD
 /* Estados de carga, error y vacío de la tabla */
 .table-state-box {
   padding: 3rem;
@@ -531,8 +521,6 @@
   white-space: nowrap;
 }
 
-=======
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
 /* 5. Sección Inferior: Aporte e Ingresos */
 .analytics-grid {
   display: grid;
@@ -620,7 +608,6 @@
   border-left: 4px solid #16a34a;
 }
 
-<<<<<<< HEAD
 .chart-card-subtitle {
   color: #64748b;
   font-size: 0.75rem;
@@ -667,8 +654,6 @@
   line-height: 1.4;
 }
 
-=======
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
 /* ==========================================================================
    6. MODAL PREMIUM DE FIGMA (CREACIÓN Y EDICIÓN)
    ========================================================================== */
@@ -819,7 +804,6 @@
   cursor: default;
 }
 
-<<<<<<< HEAD
 .rate-textarea {
   min-height: 70px;
   resize: vertical;
@@ -829,8 +813,6 @@
   margin-top: 1rem;
 }
 
-=======
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
 .rate-helper-text {
   font-size: 0.72rem;
   color: #64748b;
@@ -1138,7 +1120,6 @@
   background-color: #c2410c;
 }
 
-<<<<<<< HEAD
 /* Modal Eliminar */
 .modal-delete-title {
   margin: 0 0 0.5rem 0;
@@ -1295,8 +1276,6 @@
   margin-top: 1.5rem;
 }
 
-=======
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
 /* Toast Container */
 .toast-container-fixed {
   position: fixed;
@@ -1321,15 +1300,12 @@
   animation: slideInRight 0.25s ease-out;
 }
 
-<<<<<<< HEAD
 .toast-text {
   font-size: 0.85rem;
   font-weight: 500;
   color: #1e293b;
 }
 
-=======
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
 @keyframes slideInRight {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }

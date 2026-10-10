@@ -13,12 +13,7 @@ const IconSvg = ({ children, size = 18, color = 'currentColor', className = '' }
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
-<<<<<<< HEAD
     className={`icon-svg ${className}`.trim()}
-=======
-    className={className}
-    style={{ display: 'inline-block', verticalAlign: 'middle' }}
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
   >
     {children}
   </svg>
@@ -436,11 +431,7 @@ export default function Tarifas() {
           </header>
           <h2 className="kpi-value">{formatUSD(ingresosProyectadosMes)}</h2>
           <small className="kpi-subtitle">
-<<<<<<< HEAD
             Equivalente: <strong className="kpi-equiv-bs">{formatBs(ingresosProyectadosBs)}</strong>
-=======
-            Equivalente: <strong style={{ color: '#2563eb' }}>{formatBs(ingresosProyectadosBs)}</strong>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
           </small>
         </article>
 
@@ -455,7 +446,6 @@ export default function Tarifas() {
 
         {/* Ocupación Actual DESHABILITADA (Sin datos estáticos falsos) */}
         <article
-<<<<<<< HEAD
           className="kpi-card kpi-card-disabled"
           title="Módulo de Reservas en desarrollo. La ocupación se calculará dinámicamente con los check-in reales."
         >
@@ -470,23 +460,6 @@ export default function Tarifas() {
             </span>
           </div>
           <small className="kpi-subtitle kpi-subtitle-muted">
-=======
-          className="kpi-card"
-          style={{ opacity: 0.8, backgroundColor: '#f8fafc', border: '1px dashed #cbd5e1' }}
-          title="Módulo de Reservas en desarrollo. La ocupación se calculará dinámicamente con los check-in reales."
-        >
-          <header className="kpi-header">
-            <span className="kpi-title" style={{ color: '#64748b' }}>Ocupación Actual</span>
-            <BedDouble size={18} color="#94a3b8" />
-          </header>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', margin: '0.15rem 0' }}>
-            <h2 className="kpi-value" style={{ color: '#94a3b8' }}>-- %</h2>
-            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', backgroundColor: '#e2e8f0', padding: '0.15rem 0.45rem', borderRadius: 4 }}>
-              En desarrollo
-            </span>
-          </div>
-          <small className="kpi-subtitle" style={{ color: '#94a3b8' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
             Pendiente de módulo Reservas
           </small>
         </article>
@@ -543,7 +516,6 @@ export default function Tarifas() {
       {/* 4. Tabla Principal del Catálogo de Tarifas */}
       <section className="table-card">
         {loading ? (
-<<<<<<< HEAD
           <div className="table-state-box">
             <RefreshCw className="animate-spin spin-icon" size={24} />
             <p>Cargando catálogo de tarifas...</p>
@@ -552,27 +524,12 @@ export default function Tarifas() {
           <div className="table-state-box table-state-error">
             <p>{errorTabla}</p>
             <button className="btn-action-draft btn-retry" onClick={cargarDatos}>
-=======
-          <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
-            <RefreshCw className="animate-spin" size={24} style={{ margin: '0 auto 0.5rem auto' }} />
-            <p>Cargando catálogo de tarifas...</p>
-          </div>
-        ) : errorTabla ? (
-          <div style={{ padding: '2.5rem', textAlign: 'center', color: '#dc2626' }}>
-            <p>{errorTabla}</p>
-            <button className="btn-action-draft" onClick={cargarDatos} style={{ marginTop: '0.5rem' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
               Reintentar
             </button>
           </div>
         ) : tarifasFiltradas.length === 0 ? (
-<<<<<<< HEAD
           <div className="table-state-box table-state-empty">
             <p className="table-empty-text">No se encontraron tarifas que coincidan con la búsqueda.</p>
-=======
-          <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8' }}>
-            <p style={{ fontSize: '1rem', fontWeight: 500 }}>No se encontraron tarifas que coincidan con la búsqueda.</p>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
           </div>
         ) : (
           <table className="data-table">
@@ -587,11 +544,7 @@ export default function Tarifas() {
                 <th>Ocupación</th>
                 <th>Vigencia</th>
                 <th>Estado</th>
-<<<<<<< HEAD
                 <th className="th-actions">Acciones</th>
-=======
-                <th style={{ textAlign: 'right' }}>Acciones</th>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
               </tr>
             </thead>
             <tbody>
@@ -610,24 +563,15 @@ export default function Tarifas() {
                 return (
                   <tr key={r.id_tarifa}>
                     <td>
-<<<<<<< HEAD
                       <strong className="table-rate-id">#TAR-{r.id_tarifa}</strong>
                     </td>
                     <td>
                       <div className="table-rate-title">{r.nombre_tarifa}</div>
                       <small className="table-rate-desc">
-=======
-                      <strong style={{ color: '#0f172a' }}>#TAR-{r.id_tarifa}</strong>
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600, color: '#0f172a' }}>{r.nombre_tarifa}</div>
-                      <small style={{ color: '#64748b', fontSize: '0.74rem' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                         {r.incluye ? (r.incluye.length > 40 ? r.incluye.substring(0, 40) + '...' : r.incluye) : ''}
                       </small>
                     </td>
                     <td>
-<<<<<<< HEAD
                       <span className="table-room-name">{r.nombre_habitacion}</span>
                     </td>
                     <td>
@@ -644,24 +588,6 @@ export default function Tarifas() {
                     </td>
                     <td>
                       <small className="table-validity">
-=======
-                      <span style={{ fontWeight: 500 }}>{r.nombre_habitacion}</span>
-                    </td>
-                    <td>
-                      <strong style={{ color: '#0f172a' }}>{formatUSD(precioNum)}</strong>
-                    </td>
-                    <td>
-                      <span style={{ color: '#2563eb', fontWeight: 600 }}>{formatBs(bsCalc)}</span>
-                    </td>
-                    <td>
-                      <strong style={{ color: '#15803d' }}>{formatUSD(totalNum)}</strong>
-                    </td>
-                    <td>
-                      <small style={{ color: '#475569' }}>{r.ocupacion_base} huéspedes</small>
-                    </td>
-                    <td>
-                      <small style={{ color: '#64748b', whiteSpace: 'nowrap' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                         {r.vigente_desde} — {r.vigente_hasta}
                       </small>
                     </td>
@@ -723,20 +649,12 @@ export default function Tarifas() {
         <article className="chart-card">
           <header className="chart-card-header">
             <h3 className="chart-card-title">Aporte de Ingresos por Categoría</h3>
-<<<<<<< HEAD
             <small className="chart-card-subtitle">Mes de {mesCapitalizado}</small>
-=======
-            <small style={{ color: '#64748b', fontSize: '0.75rem' }}>Mes de {mesCapitalizado}</small>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
           </header>
 
           <div className="progress-group">
             {tarifasActivas.length === 0 ? (
-<<<<<<< HEAD
               <p className="analytics-empty-message">
-=======
-              <p style={{ color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center', padding: '1.5rem 0' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                 No hay tarifas activas registradas en el catálogo.
               </p>
             ) : (
@@ -780,7 +698,6 @@ export default function Tarifas() {
           <div className="currency-flow-box">
             <div className="currency-flow-card currency-flow-usd">
               <div>
-<<<<<<< HEAD
                 <strong className="currency-title-usd">
                   Divisas USD (Moneda Base Referencial)
                 </strong>
@@ -789,21 +706,10 @@ export default function Tarifas() {
                 </small>
               </div>
               <strong className="currency-tag-usd">Base</strong>
-=======
-                <strong style={{ color: '#1e3a8a', fontSize: '0.85rem', display: 'block' }}>
-                  Divisas USD (Moneda Base Referencial)
-                </strong>
-                <small style={{ color: '#64748b', fontSize: '0.72rem' }}>
-                  {tarifasActivas.length} tarifas activas fijadas en USD · Zelle, Efectivo, Tarjetas
-                </small>
-              </div>
-              <strong style={{ fontSize: '1.05rem', color: '#1e3a8a' }}>Base</strong>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
             </div>
 
             <div className="currency-flow-card currency-flow-bs">
               <div>
-<<<<<<< HEAD
                 <strong className="currency-title-bs">
                   Bolívares VES (Tasa Oficial BCV del Día)
                 </strong>
@@ -816,20 +722,6 @@ export default function Tarifas() {
           </div>
 
           <p className="currency-footer-note">
-=======
-                <strong style={{ color: '#14532d', fontSize: '0.85rem', display: 'block' }}>
-                  Bolívares VES (Tasa Oficial BCV del Día)
-                </strong>
-                <small style={{ color: '#64748b', fontSize: '0.72rem' }}>
-                  1 USD = {bcvRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs · Punto de Venta, Pago Móvil, Biopago
-                </small>
-              </div>
-              <strong style={{ fontSize: '1.05rem', color: '#14532d' }}>En Vivo</strong>
-            </div>
-          </div>
-
-          <p style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '1rem', lineHeight: 1.4 }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
             * Facturación en bolívares calculada en tiempo real mediante la API oficial del Banco Central de Venezuela.
           </p>
         </article>
@@ -849,7 +741,6 @@ export default function Tarifas() {
               </div>
 
               <div className="modal-header-right">
-<<<<<<< HEAD
                 <div className="bcv-exchange-badge bcv-exchange-badge-sm">
                   <div className="bcv-exchange-icon bcv-exchange-icon-sm">
                     <ArrowLeftRight size={14} />
@@ -859,17 +750,6 @@ export default function Tarifas() {
                       1 USD = {bcvRate.toFixed(2)} Bs
                     </div>
                     <div className="bcv-rate-date bcv-rate-date-sm">Tasa oficial BCV</div>
-=======
-                <div className="bcv-exchange-badge" style={{ padding: '0.45rem 0.85rem' }}>
-                  <div className="bcv-exchange-icon" style={{ width: 26, height: 26 }}>
-                    <ArrowLeftRight size={14} />
-                  </div>
-                  <div className="bcv-exchange-content">
-                    <div className="bcv-rate-value" style={{ fontSize: '0.825rem' }}>
-                      1 USD = {bcvRate.toFixed(2)} Bs
-                    </div>
-                    <div className="bcv-rate-date" style={{ fontSize: '0.68rem' }}>Tasa oficial BCV</div>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                   </div>
                 </div>
 
@@ -905,11 +785,7 @@ export default function Tarifas() {
                     />
                   </div>
 
-<<<<<<< HEAD
                   <div className="rate-form-group form-group-spaced">
-=======
-                  <div className="rate-form-group" style={{ marginTop: '1rem' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                     <label className="rate-label">Tipo de habitación</label>
                     <div className="rate-select-wrapper">
                       <select
@@ -956,11 +832,7 @@ export default function Tarifas() {
                     </div>
                   </div>
 
-<<<<<<< HEAD
                   <div className="rate-grid-2 form-group-spaced">
-=======
-                  <div className="rate-grid-2" style={{ marginTop: '1rem' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                     <div className="rate-form-group">
                       <label className="rate-label">Precio base de referencia (USD)</label>
                       <input
@@ -1035,12 +907,7 @@ export default function Tarifas() {
                     <label className="rate-label">Condiciones</label>
                     <textarea
                       name="incluye"
-<<<<<<< HEAD
                       className="rate-input rate-textarea"
-=======
-                      className="rate-input"
-                      style={{ minHeight: 70, resize: 'vertical' }}
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                       value={formData.incluye}
                       onChange={handleInputChange}
                       placeholder="Condiciones comerciales, desayunos incluidos, políticas de cancelación..."
@@ -1136,54 +1003,31 @@ export default function Tarifas() {
           ====================================================================== */}
       {modalVerAbierto && tarifaVer && (
         <div className="modal-overlay" onClick={() => setModalVerAbierto(false)}>
-<<<<<<< HEAD
           <div className="modal-small-card modal-detalles-card" onClick={(e) => e.stopPropagation()}>
             <header className="modal-detalles-header">
               <h3 className="modal-detalles-title">Detalles de la Tarifa</h3>
-=======
-          <div className="modal-small-card" style={{ maxWidth: 520, textAlign: 'left' }} onClick={(e) => e.stopPropagation()}>
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: '#0f172a' }}>Detalles de la Tarifa</h3>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
               <button type="button" className="btn-close-modal" onClick={() => setModalVerAbierto(false)}>
                 <X size={16} />
               </button>
             </header>
 
-<<<<<<< HEAD
             <div className="modal-detalles-body">
               <div className="modal-detalles-highlight">
                 <span className="detalles-label">NOMBRE DE LA TARIFA</span>
                 <strong className="detalles-nombre">{tarifaVer.nombre_tarifa}</strong>
                 <div className="detalles-habitacion">
-=======
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              <div style={{ backgroundColor: '#f8fafc', padding: '0.85rem 1rem', borderRadius: 8 }}>
-                <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>NOMBRE DE LA TARIFA</span>
-                <strong style={{ fontSize: '1.1rem', color: '#0f172a' }}>{tarifaVer.nombre_tarifa}</strong>
-                <div style={{ fontSize: '0.85rem', color: '#2563eb', fontWeight: 500, marginTop: '0.2rem' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                   {tarifaVer.nombre_habitacion}
                 </div>
               </div>
 
               <div className="rate-grid-2">
                 <div>
-<<<<<<< HEAD
                   <span className="detalles-label">PRECIO BASE (USD)</span>
                   <strong className="detalles-valor-usd">{formatUSD(tarifaVer.precio_base)}</strong>
                 </div>
                 <div>
                   <span className="detalles-label">EQUIVALENTE BCV (BS)</span>
                   <strong className="detalles-valor-bs">
-=======
-                  <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>PRECIO BASE (USD)</span>
-                  <strong style={{ fontSize: '1.1rem', color: '#0f172a' }}>{formatUSD(tarifaVer.precio_base)}</strong>
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>EQUIVALENTE BCV (BS)</span>
-                  <strong style={{ fontSize: '1.1rem', color: '#2563eb' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                     {formatBs((parseFloat(tarifaVer.precio_base) || 0) * bcvRate)}
                   </strong>
                 </div>
@@ -1191,46 +1035,27 @@ export default function Tarifas() {
 
               <div className="rate-grid-2">
                 <div>
-<<<<<<< HEAD
                   <span className="detalles-label">VIGENCIA</span>
                   <span className="detalles-vigencia">
-=======
-                  <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>VIGENCIA</span>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                     {tarifaVer.vigente_desde} — {tarifaVer.vigente_hasta}
                   </span>
                 </div>
                 <div>
-<<<<<<< HEAD
                   <span className="detalles-label">TOTAL ESTIMADO C/ IVA</span>
                   <strong className="detalles-valor-total">
-=======
-                  <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>TOTAL ESTIMADO C/ IVA</span>
-                  <strong style={{ fontSize: '1.05rem', color: '#16a34a' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                     {formatUSD((parseFloat(tarifaVer.precio_base) || 0) * (1 + (parseFloat(tarifaVer.iva) || 16) / 100))}
                   </strong>
                 </div>
               </div>
 
               <div>
-<<<<<<< HEAD
                 <span className="detalles-label">CONDICIONES & POLÍTICAS</span>
                 <p className="detalles-condiciones">
-=======
-                <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>CONDICIONES & POLÍTICAS</span>
-                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.825rem', color: '#334155', background: '#f8fafc', padding: '0.6rem 0.8rem', borderRadius: 6, border: '1px solid #e2e8f0' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                   {tarifaVer.incluye || 'Sin condiciones especificadas.'}
                 </p>
               </div>
 
-<<<<<<< HEAD
               <div className="modal-detalles-actions">
-=======
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', marginTop: '0.75rem' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                 <button type="button" className="btn-action-cancel" onClick={() => setModalVerAbierto(false)}>
                   Cerrar
                 </button>
@@ -1259,7 +1084,6 @@ export default function Tarifas() {
             <div className="modal-delete-icon-box">
               <Trash2 size={26} />
             </div>
-<<<<<<< HEAD
             <h3 className="modal-delete-title">
               ¿Eliminar Tarifa?
             </h3>
@@ -1269,17 +1093,6 @@ export default function Tarifas() {
             </p>
 
             <div className="modal-delete-actions">
-=======
-            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', fontWeight: 700, color: '#0f172a' }}>
-              ¿Eliminar Tarifa?
-            </h3>
-            <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.85rem', color: '#64748b', lineHeight: 1.45 }}>
-              Esta acción <strong>no se puede deshacer</strong>. Se borrará permanentemente la tarifa{' '}
-              <strong style={{ color: '#0f172a' }}>"{tarifaAEliminar.nombre_tarifa}"</strong> del catálogo del hotel.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
               <button type="button" className="btn-delete-confirm" onClick={confirmarEliminar}>
                 Sí, eliminar tarifa
               </button>
@@ -1296,15 +1109,9 @@ export default function Tarifas() {
           ====================================================================== */}
       {modalBcvAbierto && (
         <div className="modal-overlay" onClick={() => setModalBcvAbierto(false)}>
-<<<<<<< HEAD
           <div className="modal-small-card modal-bcv-card" onClick={(e) => e.stopPropagation()}>
             <header className="modal-bcv-header">
               <h3 className="modal-bcv-title">
-=======
-          <div className="modal-small-card" style={{ maxWidth: 440, textAlign: 'left' }} onClick={(e) => e.stopPropagation()}>
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                 <TrendingUp size={18} color="#2563eb" />
                 Actualizar Tasa Oficial BCV
               </h3>
@@ -1313,33 +1120,20 @@ export default function Tarifas() {
               </button>
             </header>
 
-<<<<<<< HEAD
             <form onSubmit={aplicarTasaBcv} className="modal-bcv-form">
-=======
-            <form onSubmit={aplicarTasaBcv} style={{ width: '100%' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
               <div className="rate-form-group">
                 <label className="rate-label">Tasa Oficial (Bs / USD)</label>
                 <input
                   type="number"
                   step="0.01"
-<<<<<<< HEAD
                   className="rate-input rate-input-bcv"
-=======
-                  className="rate-input"
-                  style={{ fontWeight: 700, fontSize: '1.1rem', color: '#1d4ed8' }}
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                   value={inputBcvRate}
                   onChange={(e) => setInputBcvRate(e.target.value)}
                   required
                 />
               </div>
 
-<<<<<<< HEAD
               <div className="rate-form-group form-group-spaced">
-=======
-              <div className="rate-form-group" style={{ marginTop: '1rem' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                 <label className="rate-label">Fecha y Hora de Publicación</label>
                 <input
                   type="text"
@@ -1349,11 +1143,7 @@ export default function Tarifas() {
                 />
               </div>
 
-<<<<<<< HEAD
               <div className="modal-bcv-actions">
-=======
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', marginTop: '1.5rem' }}>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
                 <button type="button" className="btn-action-cancel" onClick={() => setModalBcvAbierto(false)}>
                   Cancelar
                 </button>
@@ -1371,11 +1161,7 @@ export default function Tarifas() {
         {toasts.map((t) => (
           <article key={t.id} className="toast-item">
             <Check size={18} color="#16a34a" />
-<<<<<<< HEAD
             <span className="toast-text">{t.mensaje}</span>
-=======
-            <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#1e293b' }}>{t.mensaje}</span>
->>>>>>> a5f96832b675a309bb1ea827bdba6dbde373ee7a
           </article>
         ))}
       </aside>
