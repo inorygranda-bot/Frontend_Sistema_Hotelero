@@ -2,6 +2,26 @@
    ESTILOS DEL MÓDULO DE GESTIÓN DE TARIFAS (CATÁLOGO Y FIGMA MODAL)
    ========================================================================== */
 
+/* Icono SVG genérico */
+.icon-svg {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Animación de giro para loaders */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-icon {
+  margin: 0 auto 0.5rem auto;
+}
+
 .tarifas-vista-container {
   display: flex;
   flex-direction: column;
@@ -94,6 +114,24 @@
   color: #64748b;
 }
 
+/* Píldora BCV variante compacta (Modales) */
+.bcv-exchange-badge.bcv-exchange-badge-sm {
+  padding: 0.45rem 0.85rem;
+}
+
+.bcv-exchange-icon.bcv-exchange-icon-sm {
+  width: 26px;
+  height: 26px;
+}
+
+.bcv-rate-value.bcv-rate-value-sm {
+  font-size: 0.825rem;
+}
+
+.bcv-rate-date.bcv-rate-date-sm {
+  font-size: 0.68rem;
+}
+
 /* 2. Tarjetas KPI Superiores */
 .kpi-grid {
   display: grid;
@@ -141,6 +179,45 @@
 .kpi-subtitle {
   font-size: 0.75rem;
   color: #64748b;
+}
+
+.kpi-equiv-bs {
+  color: #2563eb;
+}
+
+/* KPI Deshabilitado / En desarrollo */
+.kpi-card.kpi-card-disabled {
+  opacity: 0.8;
+  background-color: #f8fafc;
+  border: 1px dashed #cbd5e1;
+}
+
+.kpi-title-muted {
+  color: #64748b;
+}
+
+.kpi-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0.15rem 0;
+}
+
+.kpi-value.kpi-value-muted {
+  color: #94a3b8;
+}
+
+.kpi-badge-dev {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748b;
+  background-color: #e2e8f0;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.kpi-subtitle-muted {
+  color: #94a3b8;
 }
 
 /* 3. Barra de Búsqueda y Filtros */
@@ -374,6 +451,76 @@
   color: #dc2626;
 }
 
+/* Estados de carga, error y vacío de la tabla */
+.table-state-box {
+  padding: 3rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.table-state-box.table-state-error {
+  padding: 2.5rem;
+  color: #dc2626;
+}
+
+.table-state-box.table-state-empty {
+  color: #94a3b8;
+}
+
+.btn-retry {
+  margin-top: 0.5rem;
+}
+
+.table-empty-text {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.th-actions {
+  text-align: right;
+}
+
+/* Celdas semánticas de la tabla */
+.table-rate-id {
+  color: #0f172a;
+}
+
+.table-rate-title {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.table-rate-desc {
+  color: #64748b;
+  font-size: 0.74rem;
+}
+
+.table-room-name {
+  font-weight: 500;
+}
+
+.table-price-base {
+  color: #0f172a;
+}
+
+.table-price-bs {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.table-price-total {
+  color: #15803d;
+}
+
+.table-occupancy {
+  color: #475569;
+}
+
+.table-validity {
+  color: #64748b;
+  white-space: nowrap;
+}
+
 /* 5. Sección Inferior: Aporte e Ingresos */
 .analytics-grid {
   display: grid;
@@ -459,6 +606,52 @@
 .currency-flow-bs {
   background-color: #f0fdf4;
   border-left: 4px solid #16a34a;
+}
+
+.chart-card-subtitle {
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.analytics-empty-message {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.currency-title-usd {
+  color: #1e3a8a;
+  font-size: 0.85rem;
+  display: block;
+}
+
+.currency-desc {
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+.currency-tag-usd {
+  font-size: 1.05rem;
+  color: #1e3a8a;
+}
+
+.currency-title-bs {
+  color: #14532d;
+  font-size: 0.85rem;
+  display: block;
+}
+
+.currency-tag-bs {
+  font-size: 1.05rem;
+  color: #14532d;
+}
+
+.currency-footer-note {
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 1rem;
+  line-height: 1.4;
 }
 
 /* ==========================================================================
@@ -609,6 +802,15 @@
   background-color: #f8fafc;
   color: #475569;
   cursor: default;
+}
+
+.rate-textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.form-group-spaced {
+  margin-top: 1rem;
 }
 
 .rate-helper-text {
@@ -918,6 +1120,162 @@
   background-color: #c2410c;
 }
 
+/* Modal Eliminar */
+.modal-delete-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.modal-delete-text {
+  margin: 0 0 1.25rem 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.modal-delete-name {
+  color: #0f172a;
+}
+
+.modal-delete-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+/* Modal Ver Detalles */
+.modal-detalles-card {
+  max-width: 520px;
+  text-align: left;
+}
+
+.modal-detalles-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.modal-detalles-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.modal-detalles-body {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.modal-detalles-highlight {
+  background-color: #f8fafc;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+}
+
+.detalles-label {
+  font-size: 0.72rem;
+  color: #64748b;
+  display: block;
+}
+
+.detalles-nombre {
+  font-size: 1.1rem;
+  color: #0f172a;
+}
+
+.detalles-habitacion {
+  font-size: 0.85rem;
+  color: #2563eb;
+  font-weight: 500;
+  margin-top: 0.2rem;
+}
+
+.detalles-valor-usd {
+  font-size: 1.1rem;
+  color: #0f172a;
+}
+
+.detalles-valor-bs {
+  font-size: 1.1rem;
+  color: #2563eb;
+}
+
+.detalles-vigencia {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.detalles-valor-total {
+  font-size: 1.05rem;
+  color: #16a34a;
+}
+
+.detalles-condiciones {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.825rem;
+  color: #334155;
+  background: #f8fafc;
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.modal-detalles-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+/* Modal Actualizar Tasa BCV */
+.modal-bcv-card {
+  max-width: 440px;
+  text-align: left;
+}
+
+.modal-bcv-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.modal-bcv-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.modal-bcv-form {
+  width: 100%;
+}
+
+.rate-input-bcv {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #1d4ed8;
+}
+
+.modal-bcv-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+
 /* Toast Container */
 .toast-container-fixed {
   position: fixed;
@@ -940,6 +1298,12 @@
   border-radius: 8px;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   animation: slideInRight 0.25s ease-out;
+}
+
+.toast-text {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #1e293b;
 }
 
 @keyframes slideInRight {
