@@ -3,6 +3,7 @@ import MenuLateral from './componentes/menu_lateral';
 import Cabecera from './componentes/cabecera';
 import Huespedes from './componentes/Vistas/huespedes';
 import Tarifas from './componentes/Vistas/tarifas';
+import Habitaciones from './componentes/Vistas/Habitaciones';
 import './App.css';
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
           {vistaActual === 'tarifas' && <Tarifas />}
           {vistaActual === 'huespedes' && <Huespedes />}
           {vistaActual === 'inicio' && <section><h2>Vista de Inicio</h2></section>}
+          {vistaActual === 'habitaciones' && <Habitaciones />}
           {/* A medida que crees Reservas, Finanzas, etc., las agregas aquí */}
         </article>
       </section>
