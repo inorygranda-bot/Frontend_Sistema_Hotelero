@@ -1,0 +1,119 @@
+@import './variables.css';
+
+/* Reset Básico */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--fuente-base);
+  background-color: var(--color-fondo);
+  color: var(--color-texto-principal);
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Enlaces y Botones Reset */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  font-size: 1rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* Tablas */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* Formulario e Inputs */
+input, select, textarea {
+  font-family: inherit;
+  font-size: 1rem;
+  outline: none;
+}
+
+/* Estructura del Layout Principal */
+.contenedor-principal {
+  display: flex;
+  min-height: 100vh;
+}
+
+.contenido-principal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-fondo);
+}
+
+.cabecera-superior {
+  height: 60px;
+  background-color: var(--color-superficie);
+  border-bottom: 1px solid var(--color-borde);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+}
+
+.boton-menu-movil {
+  display: none;
+}
+
+.usuario-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.tarjeta-usuario {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  background-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.vista-contenido {
+  padding: 2rem;
+  flex: 1;
+}
+
+/* Estructura del Layout Principal */
+.layout-principal {
+  display: flex;
+  min-height: 100vh;
+  width: 100vw;
+  overflow-x: hidden;
+}
+
+.contenido-principal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-fondo);
+  min-width: 0;
+}

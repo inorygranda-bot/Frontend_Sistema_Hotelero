@@ -1,0 +1,33 @@
+:root {
+  /* Paleta de Colores Principal */
+  --color-primario: #2563eb;
+  --color-primario-hover: #1d4ed8;
+  --color-fondo: #f8fafc;
+  --color-superficie: #ffffff;
+  --color-borde: #e2e8f0;
+
+  /* Texto */
+  --color-texto-principal: #0f172a;
+  --color-texto-secundario: #64748b;
+  --color-texto-inverso: #ffffff;
+
+  /* Colores Menú Lateral */
+  --color-menu-fondo: #1e293b;
+  --color-menu-hover: #334155;
+  --color-menu-texto: #cbd5e1;
+  --color-menu-borde: #334155;
+
+  /* Estados */
+  --color-exito: #16a34a;
+  --color-error: #dc2626;
+  --color-advertencia: #d97706;
+
+  /* Bordes y Sombras */
+  --radio-borde: 8px;
+  --sombra-suave: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --sombra-tarjeta: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+
+  /* Fuentes y Transiciones */
+  --fuente-base: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --transicion-rapida: 0.2s ease-in-out;
+}
