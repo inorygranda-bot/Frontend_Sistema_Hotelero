@@ -9,7 +9,6 @@ function App() {
   const [menuColapsado, setMenuColapsado] = useState(false);
   // Estado para saber cuál vista está seleccionada
   const [vistaActual, setVistaActual] = useState('tarifas');
-  const [vistaActual, setVistaActual] = useState('huespedes');
 
   const toggleMenu = () => {
     setMenuColapsado(!menuColapsado);
