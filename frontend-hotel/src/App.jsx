@@ -3,14 +3,13 @@ import MenuLateral from './componentes/menu_lateral';
 import Cabecera from './componentes/cabecera';
 import Huespedes from './componentes/Vistas/huespedes';
 import Tarifas from './componentes/Vistas/tarifas';
-import Reservas from '/componentes/Vistas/reservas';
 import './App.css';
 
 function App() {
   const [menuColapsado, setMenuColapsado] = useState(false);
   // Estado para saber cuál vista está seleccionada
   const [vistaActual, setVistaActual] = useState('tarifas');
-  {vistaActual === 'reservas' && <Reservas />}
+  const [vistaActual, setVistaActual] = useState('huespedes');
 
   const toggleMenu = () => {
     setMenuColapsado(!menuColapsado);
