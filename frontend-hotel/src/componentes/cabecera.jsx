@@ -1,6 +1,8 @@
 import React from 'react';
 
-export default function Cabecera({ toggleMenu }) {
+export default function Cabecera({ toggleMenu, usuario }) {
+  const nombreUsuario = usuario?.nombre || 'Usuario';
+  const inicial = nombreUsuario.charAt(0).toUpperCase();
 
   return (
     <header className="cabecera-superior">
@@ -17,8 +19,8 @@ export default function Cabecera({ toggleMenu }) {
 
       <section className="usuario-cabecera">
         <article className="tarjeta-usuario">
-          <figure className="avatar">V</figure>
-          <span>Vicleydy</span>
+          <figure className="avatar">{inicial}</figure>
+          <span>{nombreUsuario}</span>
         </article>
       </section>
     </header>
