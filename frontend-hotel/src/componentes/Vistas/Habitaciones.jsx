@@ -56,35 +56,39 @@ export default function Habitaciones() {
     textoConfirmar: 'Aceptar'
   });
 
-  // ====================== CARGAR DATOS ======================
   const cargarDatos = async () => {
+    setLoading(true);
+    setErrorTabla(null);
+
+    // 1. Cargar Habitaciones de forma independiente
     try {
-      setLoading(true);
-      setErrorTabla(null);
-
-      const [respHabitaciones, respTipos] = await Promise.all([
-        fetch(API_HABITACIONES_URL),
-        fetch(API_TIPOS_URL).catch(() => ({ ok: false }))
-      ]);
-
-      if (!respHabitaciones.ok) {
-        throw new Error(`Error ${respHabitaciones.status}: No se pudo obtener las habitaciones.`);
+      const respHabitaciones = await fetch(API_HABITACIONES_URL);
+      if (respHabitaciones.ok) {
+        const datosHabitaciones = await respHabitaciones.json();
+        setHabitaciones(Array.isArray(datosHabitaciones) ? datosHabitaciones : []);
+      } else {
+        setHabitaciones([]);
       }
+    } catch (errHab) {
+      console.error('Error al cargar habitaciones:', errHab);
+      setHabitaciones([]);
+    }
 
-      const datosHabitaciones = await respHabitaciones.json();
-      setHabitaciones(datosHabitaciones);
-
+    // 2. Cargar Tipos de Habitación de forma independiente
+    try {
+      const respTipos = await fetch(API_TIPOS_URL);
       if (respTipos.ok) {
         const datosTipos = await respTipos.json();
-        setTiposHabitacion(datosTipos);
+        setTiposHabitacion(Array.isArray(datosTipos) ? datosTipos : []);
       } else {
         setTiposHabitacion([]);
       }
-    } catch (err) {
-      setErrorTabla(err.message || 'Error al conectar con el servidor.');
-    } finally {
-      setLoading(false);
+    } catch (errTipos) {
+      console.error('Error al cargar tipos de habitación:', errTipos);
+      setTiposHabitacion([]);
     }
+
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -445,14 +449,14 @@ export default function Habitaciones() {
           className={`boton-pestanna ${pestannaActiva === 'HABITACIONES' ? 'activa' : ''}`}
           onClick={() => setPestannaActiva('HABITACIONES')}
         >
-          Habitaciones ({habitaciones.length})
+          Habitaciones
         </button>
         <button
           type="button"
           className={`boton-pestanna ${pestannaActiva === 'TIPOS' ? 'activa' : ''}`}
           onClick={() => setPestannaActiva('TIPOS')}
         >
-          Tipos de Habitación ({tiposHabitacion.length})
+          Tipos de Habitación
         </button>
       </nav>
 
@@ -953,10 +957,10 @@ export default function Habitaciones() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
               )}
               {alerta.tipo === 'error' && (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
               )}
               {alerta.tipo === 'confirmar' && (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
               )}
             </header>
             <h3 className="titulo-alerta">{alerta.titulo}</h3>
@@ -964,16 +968,16 @@ export default function Habitaciones() {
             <footer className="acciones-alerta">
               {alerta.tipo === 'confirmar' ? (
                 <nav className="grupo-botones-alerta-confirmar">
-                  <button 
-                    type="button" 
-                    className="boton-alerta-secundario" 
+                  <button
+                    type="button"
+                    className="boton-alerta-secundario"
                     onClick={() => setAlerta((prev) => ({ ...prev, abierto: false }))}
                   >
                     Cancelar
                   </button>
-                  <button 
-                    type="button" 
-                    className="boton-alerta-peligro" 
+                  <button
+                    type="button"
+                    className="boton-alerta-peligro"
                     onClick={() => {
                       setAlerta((prev) => ({ ...prev, abierto: false }));
                       if (alerta.accionConfirmar) alerta.accionConfirmar();
@@ -983,9 +987,9 @@ export default function Habitaciones() {
                   </button>
                 </nav>
               ) : (
-                <button 
-                  type="button" 
-                  className="boton-alerta-primario" 
+                <button
+                  type="button"
+                  className="boton-alerta-primario"
                   onClick={() => setAlerta((prev) => ({ ...prev, abierto: false }))}
                 >
                   Aceptar
