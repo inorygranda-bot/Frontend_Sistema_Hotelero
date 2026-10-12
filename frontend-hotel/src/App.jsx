@@ -7,6 +7,7 @@ import Tarifas from './componentes/Vistas/tarifas';
 import Habitaciones from './componentes/Vistas/Habitaciones';
 import Recargos from './componentes/Vistas/recargos';
 import GestionUsuariosRoles from './componentes/Vistas/GestionUsuariosRoles';
+import Reservas from './componentes/Vistas/Reservas';
 import './App.css';
 
 export default function App() {
@@ -76,6 +77,7 @@ export default function App() {
           {vistaActual === 'habitaciones' && <Habitaciones />}
           {vistaActual === 'finanzas' && <Recargos />}
           {vistaActual === 'roles' && <GestionUsuariosRoles />}
+          {vistaActual === 'reservas' && <Reservas />}
           {vistaActual === 'inicio' && <section><h2>Vista de Inicio</h2></section>}
         </article>
       </section>

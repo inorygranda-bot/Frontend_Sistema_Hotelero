@@ -1,0 +1,74 @@
+/* ============================================
+   CONTENEDOR Y TABLA DE RESERVAS
+============================================ */
+.contenedor-reservas {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.tarjeta-tabla-reservas {
+  background: var(--color-superficie, #ffffff);
+  border: 1px solid var(--color-borde, #e2e8f0);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.tabla-reservas {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.tabla-reservas th {
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tabla-reservas td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #0f172a;
+}
+
+.tabla-reservas tr:last-child td {
+  border-bottom: none;
+}
+
+.tabla-reservas tr:hover td {
+  background-color: #f8fafc;
+}
+
+.codigo-reserva {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-texto-principal, #0f172a);
+}
+
+.texto-destacado {
+  color: var(--color-texto-principal, #0f172a);
+  font-weight: 600;
+}
+
+/* Badges de Estado de Reserva */
+.badge-estado-reserva {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badge-pendiente { background-color: #fef9c3; color: #a16207; }
+.badge-confirmada { background-color: #dbeafe; color: #1d4ed8; }
+.badge-checkin { background-color: #dcfce7; color: #15803d; }
+.badge-checkout { background-color: #f1f5f9; color: #475569; }
+.badge-cancelada { background-color: #fee2e2; color: #dc2626; }
