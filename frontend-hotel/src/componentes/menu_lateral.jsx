@@ -18,8 +18,8 @@ export default function MenuLateral({ colapsado, vistaActual, setVistaActual, ce
   const modulosPermitidos = usuario?.modulos;
 
   const tieneAcceso = (idModulo) => {
-    if (!modulosPermitidos) return true; // Fallback si no viene definido
-    return modulosPermitidos.includes(idModulo);
+    if (!modulosPermitidos || !Array.isArray(modulosPermitidos)) return Number(idModulo) === 1;
+    return modulosPermitidos.some((m) => Number(m) === Number(idModulo));
   };
 
   return (
