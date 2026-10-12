@@ -8,6 +8,7 @@ import Habitaciones from './componentes/Vistas/Habitaciones';
 import Finanzas from './componentes/Vistas/Finanzas';
 import GestionUsuariosRoles from './componentes/Vistas/GestionUsuariosRoles';
 import Reservas from './componentes/Vistas/Reservas';
+import ControlEmergencia from './componentes/Vistas/ControlEmergencia';
 import './App.css';
 
 export default function App() {
@@ -79,6 +80,7 @@ export default function App() {
           {vistaActual === 'roles' && <GestionUsuariosRoles />}
           {vistaActual === 'reservas' && <Reservas />}
           {vistaActual === 'inicio' && <section><h2>Vista de Inicio</h2></section>}
+          {vistaActual === 'emergencia' && <ControlEmergencia />}
         </article>
       </section>
     </main>
