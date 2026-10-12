@@ -5,7 +5,7 @@ import Cabecera from './componentes/cabecera';
 import Huespedes from './componentes/Vistas/huespedes';
 import Tarifas from './componentes/Vistas/tarifas';
 import Habitaciones from './componentes/Vistas/Habitaciones';
-import Recargos from './componentes/Vistas/recargos';
+import Finanzas from './componentes/Vistas/Finanzas';
 import GestionUsuariosRoles from './componentes/Vistas/GestionUsuariosRoles';
 import Reservas from './componentes/Vistas/Reservas';
 import './App.css';
@@ -75,7 +75,7 @@ export default function App() {
           {vistaActual === 'tarifas' && <Tarifas />}
           {vistaActual === 'huespedes' && <Huespedes />}
           {vistaActual === 'habitaciones' && <Habitaciones />}
-          {vistaActual === 'finanzas' && <Recargos />}
+          {vistaActual === 'finanzas' && <Finanzas usuario={sesionActiva} />}
           {vistaActual === 'roles' && <GestionUsuariosRoles />}
           {vistaActual === 'reservas' && <Reservas />}
           {vistaActual === 'inicio' && <section><h2>Vista de Inicio</h2></section>}
