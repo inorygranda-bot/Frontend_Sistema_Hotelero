@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import XLSX from 'xlsx-js-style';
 import '../../estilos/tarifas.css';
 
 // SVG Icons 100% compatibles con React 19 sin librerías externas
@@ -36,6 +37,23 @@ const Check = (p) => <IconSvg {...p}><polyline points="20 6 9 17 4 12"/></IconSv
 const ChevronDown = (p) => <IconSvg {...p}><path d="m6 9 6 6 6-6"/></IconSvg>;
 const DollarSign = (p) => <IconSvg {...p}><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></IconSvg>;
 const RefreshCw = (p) => <IconSvg {...p}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></IconSvg>;
+const FileSpreadsheet = (p) => (
+  <IconSvg {...p}>
+    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
+    <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
+    <path d="M8 13h2"/>
+    <path d="M14 13h2"/>
+    <path d="M8 17h2"/>
+    <path d="M14 17h2"/>
+  </IconSvg>
+);
+const AlertCircle = (p) => (
+  <IconSvg {...p}>
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="12" y1="8" x2="12" y2="12"/>
+    <line x1="12" y1="16" x2="12.01" y2="16"/>
+  </IconSvg>
+);
 
 const API_BASE = 'http://localhost:3000/api/tarifas';
 
@@ -43,6 +61,8 @@ export default function Tarifas() {
   // 1. Estados principales de datos
   const [tarifas, setTarifas] = useState([]);
   const [tiposHabitacion, setTiposHabitacion] = useState([]);
+  const [habitaciones, setHabitaciones] = useState([]);
+  const [reservas, setReservas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorTabla, setErrorTabla] = useState(null);
 
@@ -87,6 +107,9 @@ export default function Tarifas() {
   // 6. Modal Eliminar
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false);
   const [tarifaAEliminar, setTarifaAEliminar] = useState(null);
+
+  // 6b. Modal Límite: Todas las habitaciones tienen tarifa asignada
+  const [modalLimiteAbierto, setModalLimiteAbierto] = useState(false);
 
   // 7. Toasts
   const [toasts, setToasts] = useState([]);
@@ -151,9 +174,11 @@ export default function Tarifas() {
       setLoading(true);
       setErrorTabla(null);
 
-      const [resTarifas, resTipos] = await Promise.all([
+      const [resTarifas, resTipos, resHabitaciones, resReservas] = await Promise.all([
         fetch(API_BASE),
-        fetch(`${API_BASE}/tipos-habitacion`)
+        fetch(`${API_BASE}/tipos-habitacion`),
+        fetch('http://localhost:3000/api/habitaciones').catch(() => null),
+        fetch('http://localhost:3000/api/reservas').catch(() => null)
       ]);
 
       if (!resTarifas.ok || !resTipos.ok) {
@@ -165,6 +190,16 @@ export default function Tarifas() {
 
       setTarifas(dataTarifas);
       setTiposHabitacion(dataTipos);
+
+      if (resHabitaciones && resHabitaciones.ok) {
+        const dataHab = await resHabitaciones.json();
+        setHabitaciones(Array.isArray(dataHab) ? dataHab : []);
+      }
+
+      if (resReservas && resReservas.ok) {
+        const dataRes = await resReservas.json();
+        setReservas(Array.isArray(dataRes) ? dataRes : []);
+      }
 
       if (dataTipos.length > 0 && !formData.id_tipo_habitacion) {
         setFormData((prev) => ({ ...prev, id_tipo_habitacion: dataTipos[0].id_tipo_habitacion }));
@@ -200,10 +235,17 @@ export default function Tarifas() {
   const totalUSD = baseUSD + ivaUSD;
   const totalBs = totalUSD * bcvRate;
 
-  // Habitación seleccionada
+  // Habitación seleccionada y validación de regla única por habitación
   const habitacionSeleccionadaNombre =
     tiposHabitacion.find((t) => String(t.id_tipo_habitacion) === String(formData.id_tipo_habitacion))?.nombre_tipo ||
     'Habitación Seleccionada';
+
+  // Verificar si la habitación seleccionada ya tiene una tarifa asignada (distinta a la que se edita)
+  const tarifaConflicto = tarifas.find(
+    (t) =>
+      String(t.id_tipo_habitacion) === String(formData.id_tipo_habitacion) &&
+      (modoModal === 'CREAR' || t.id_tarifa !== editId)
+  );
 
   // --- GESTIÓN DE FORMULARIO ---
   const handleInputChange = (e) => {
@@ -212,11 +254,22 @@ export default function Tarifas() {
   };
 
   const abrirModalCrear = () => {
+    // Buscar la primera habitación que no tenga tarifa asignada
+    const tiposOcupados = new Set(tarifas.map((t) => String(t.id_tipo_habitacion)));
+    const tipoDisponible = tiposHabitacion.find(
+      (t) => !tiposOcupados.has(String(t.id_tipo_habitacion))
+    );
+
+    if (!tipoDisponible && tiposHabitacion.length > 0) {
+      setModalLimiteAbierto(true);
+      return;
+    }
+
     setModoModal('CREAR');
     setEditId(null);
     setFormData({
       ...initialForm,
-      id_tipo_habitacion: tiposHabitacion[0]?.id_tipo_habitacion || ''
+      id_tipo_habitacion: tipoDisponible?.id_tipo_habitacion || tiposHabitacion[0]?.id_tipo_habitacion || ''
     });
     setModalFormAbierto(true);
   };
@@ -241,7 +294,20 @@ export default function Tarifas() {
 
   const guardarTarifa = async (esBorrador = false) => {
     if (!formData.nombre_tarifa.trim() || !formData.vigente_desde || !formData.vigente_hasta) {
-      alert('Por favor completa el nombre de la tarifa y las fechas de vigencia.');
+      lanzarToast('Por favor completa el nombre de la tarifa y las fechas de vigencia.');
+      return;
+    }
+
+    // Regla estricta: Solo una tarifa por habitación. Para agregar otra se debe eliminar la que hay.
+    const tarifaExistente = tarifas.find(
+      (t) =>
+        String(t.id_tipo_habitacion) === String(formData.id_tipo_habitacion) &&
+        (modoModal === 'CREAR' || t.id_tarifa !== editId)
+    );
+
+    if (tarifaExistente) {
+      setModalLimiteAbierto(true);
+      lanzarToast(`La habitación "${habitacionSeleccionadaNombre}" ya tiene la tarifa "${tarifaExistente.nombre_tarifa}". Debes eliminarla primero.`);
       return;
     }
 
@@ -274,23 +340,16 @@ export default function Tarifas() {
       );
       cargarDatos();
     } catch (err) {
-      alert(err.message);
+      lanzarToast(err.message || 'Error al guardar tarifa.');
     } finally {
       setGuardando(false);
     }
   };
 
-  // Duplicar tarifa
-  const duplicarTarifa = async (id) => {
-    try {
-      const res = await fetch(`${API_BASE}/${id}/duplicar`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.mensaje || 'No se pudo duplicar');
-      lanzarToast('Tarifa duplicada exitosamente como Borrador.');
-      cargarDatos();
-    } catch (err) {
-      alert(err.message);
-    }
+  // Duplicar tarifa (Bloqueado por la regla de una tarifa por habitación)
+  const duplicarTarifa = (id) => {
+    setModalLimiteAbierto(true);
+    lanzarToast('Solo se permite una tarifa por habitación.');
   };
 
   // Eliminar tarifa
@@ -305,29 +364,307 @@ export default function Tarifas() {
       lanzarToast('Tarifa eliminada permanentemente del catálogo.');
       cargarDatos();
     } catch (err) {
-      alert(err.message);
+      lanzarToast(err.message || 'Error al eliminar');
     }
   };
 
-  // Exportar a CSV
-  const exportarCSV = () => {
-    if (tarifas.length === 0) return;
-    let csv = 'Código;Nombre de la Tarifa;Habitación;Precio_USD;Precio_Bs;IVA;Total_USD;Ocupación;Vigencia;Estado\n';
-    tarifasFiltradas.forEach((r) => {
-      const bs = ((parseFloat(r.precio_base) || 0) * bcvRate).toFixed(2);
-      const total = ((parseFloat(r.precio_base) || 0) * (1 + (parseFloat(r.iva) || 16) / 100)).toFixed(2);
-      csv += `"#TAR-${r.id_tarifa}";"${r.nombre_tarifa}";"${r.nombre_habitacion}";"${r.precio_base}";"${bs}";"${r.iva}%";"${total}";"${r.ocupacion_base} huéspedes";"${r.vigente_desde} a ${r.vigente_hasta}";"${r.estado}"\n`;
-    });
+  // Exportar catálogo completo a formato Excel (.xlsx) profesional, ordenado y estilizado
+  const exportarExcel = () => {
+    if (!tarifasFiltradas || tarifasFiltradas.length === 0) {
+      lanzarToast('No hay tarifas para exportar.');
+      return;
+    }
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Catalogo_Tarifas_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    lanzarToast('Catálogo descargado en formato CSV.');
+    try {
+      const wb = XLSX.utils.book_new();
+
+      const hoy = new Date();
+      const fechaStr = hoy.toLocaleDateString('es-VE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+      const horaStr = hoy.toLocaleTimeString('es-VE', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const headers = [
+        'Código',
+        'Nombre de la Tarifa',
+        'Habitación / Tipo',
+        'Precio Base (USD)',
+        'Equivalente BCV (Bs.)',
+        'IVA (%)',
+        'Total c/ IVA (USD)',
+        'Total c/ IVA (Bs.)',
+        'Ocupación Base',
+        'Huésped Adicional (USD)',
+        'Vigencia Desde',
+        'Vigencia Hasta',
+        'Estado',
+        'Servicios / Observaciones'
+      ];
+
+      const rows = [];
+      let sumaBaseUSD = 0;
+      let sumaTotalUSD = 0;
+      let sumaTotalBs = 0;
+
+      tarifasFiltradas.forEach((r) => {
+        const precioBase = parseFloat(r.precio_base) || 0;
+        const ivaPorc = parseFloat(r.iva) || 16;
+        const precioBs = precioBase * bcvRate;
+        const totalUSD = precioBase * (1 + ivaPorc / 100);
+        const totalBs = totalUSD * bcvRate;
+        const extraUSD = parseFloat(r.huesped_adicional) || 0;
+
+        sumaBaseUSD += precioBase;
+        sumaTotalUSD += totalUSD;
+        sumaTotalBs += totalBs;
+
+        rows.push([
+          `#TAR-${r.id_tarifa}`,
+          r.nombre_tarifa || '',
+          r.nombre_habitacion || '',
+          precioBase,
+          precioBs,
+          `${ivaPorc}%`,
+          totalUSD,
+          totalBs,
+          `${r.ocupacion_base || 1} pers.`,
+          extraUSD,
+          r.vigente_desde || '',
+          r.vigente_hasta || '',
+          r.estado || 'Activa',
+          r.incluye || 'Sin observaciones'
+        ]);
+      });
+
+      const cantTarifas = tarifasFiltradas.length;
+      const promBaseUSD = cantTarifas > 0 ? (sumaBaseUSD / cantTarifas) : 0;
+      const promTotalUSD = cantTarifas > 0 ? (sumaTotalUSD / cantTarifas) : 0;
+      const promTotalBs = cantTarifas > 0 ? (sumaTotalBs / cantTarifas) : 0;
+
+      const summaryRow = [
+        'PROMEDIO GENERAL',
+        `${cantTarifas} tarifas`,
+        '',
+        promBaseUSD,
+        promBaseUSD * bcvRate,
+        '-',
+        promTotalUSD,
+        promTotalBs,
+        '',
+        '',
+        '',
+        '',
+        '',
+        ''
+      ];
+
+      const sheetData = [
+        ['SISTEMA DE GESTIÓN HOTELERA — CATÁLOGO OFICIAL DE TARIFAS'],
+        [`Generado: ${fechaStr} ${horaStr} | Tasa BCV Oficial: 1 USD = ${bcvRate.toFixed(2)} Bs. | Total Registros: ${cantTarifas}`],
+        [],
+        headers,
+        ...rows,
+        summaryRow
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+      // Anchos de columna óptimos para máxima legibilidad
+      ws['!cols'] = [
+        { wch: 12 }, // Código
+        { wch: 28 }, // Nombre
+        { wch: 22 }, // Habitación
+        { wch: 18 }, // Precio Base USD
+        { wch: 22 }, // Precio Base Bs
+        { wch: 10 }, // IVA
+        { wch: 18 }, // Total USD
+        { wch: 22 }, // Total Bs
+        { wch: 18 }, // Ocupación
+        { wch: 22 }, // Huésped Adicional
+        { wch: 16 }, // Vigente Desde
+        { wch: 16 }, // Vigente Hasta
+        { wch: 14 }, // Estado
+        { wch: 42 }  // Incluye
+      ];
+
+      // Altos de fila proporcionales
+      const rowHeights = [
+        { hpt: 32 }, // Título
+        { hpt: 22 }, // Subtítulo
+        { hpt: 10 }, // Separador
+        { hpt: 28 }, // Headers
+      ];
+      for (let i = 0; i < rows.length; i++) {
+        rowHeights.push({ hpt: 22 });
+      }
+      rowHeights.push({ hpt: 26 }); // Resumen
+      ws['!rows'] = rowHeights;
+
+      // Combinaciones de celdas (Merges)
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 13 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 13 } },
+        { s: { r: 4 + rows.length, c: 0 }, e: { r: 4 + rows.length, c: 2 } }
+      ];
+
+      // Configuración de bordes limpios
+      const borderThin = {
+        top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        right: { style: 'thin', color: { rgb: 'CBD5E1' } }
+      };
+
+      const styleTitle = {
+        font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '0F172A' } },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      };
+
+      const styleSubtitle = {
+        font: { name: 'Segoe UI', sz: 9.5, italic: true, color: { rgb: 'F1F5F9' } },
+        fill: { fgColor: { rgb: '334155' } },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      };
+
+      const styleHeader = {
+        font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1E3A8A' } },
+        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+        border: borderThin
+      };
+
+      ws['A1'].s = styleTitle;
+      ws['A2'].s = styleSubtitle;
+
+      // Estilizar cabeceras
+      for (let c = 0; c < headers.length; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 3, c });
+        if (ws[cellRef]) {
+          ws[cellRef].s = styleHeader;
+        }
+      }
+
+      // Estilizar datos
+      const startRowIdx = 4;
+      for (let r = 0; r < rows.length; r++) {
+        const rowIdx = startRowIdx + r;
+        const isZebra = r % 2 === 1;
+        const bgRgb = isZebra ? 'F8FAFC' : 'FFFFFF';
+        const rawItem = tarifasFiltradas[r];
+        const estadoVal = (rawItem?.estado || '').toLowerCase();
+
+        for (let c = 0; c < headers.length; c++) {
+          const cellRef = XLSX.utils.encode_cell({ r: rowIdx, c });
+          if (!ws[cellRef]) continue;
+
+          let alignH = 'left';
+          let isBold = false;
+          let numFormat = undefined;
+          let cellFontColor = '1E293B';
+          let cellBg = bgRgb;
+
+          if (c === 0) {
+            alignH = 'center';
+            isBold = true;
+            cellFontColor = '2563EB';
+          } else if (c === 1) {
+            alignH = 'left';
+            isBold = true;
+          } else if (c === 2) {
+            alignH = 'left';
+          } else if (c === 3) {
+            alignH = 'right';
+            numFormat = '"$"#,##0.00';
+          } else if (c === 4) {
+            alignH = 'right';
+            numFormat = '"Bs. "#,##0.00';
+          } else if (c === 5) {
+            alignH = 'center';
+          } else if (c === 6) {
+            alignH = 'right';
+            isBold = true;
+            cellFontColor = '0F172A';
+            numFormat = '"$"#,##0.00';
+          } else if (c === 7) {
+            alignH = 'right';
+            isBold = true;
+            cellFontColor = '047857';
+            numFormat = '"Bs. "#,##0.00';
+          } else if (c === 8) {
+            alignH = 'center';
+          } else if (c === 9) {
+            alignH = 'right';
+            numFormat = '"$"#,##0.00';
+          } else if (c === 10 || c === 11) {
+            alignH = 'center';
+          } else if (c === 12) {
+            alignH = 'center';
+            isBold = true;
+            if (estadoVal === 'activa') {
+              cellBg = 'DCFCE7';
+              cellFontColor = '166534';
+            } else if (estadoVal === 'borrador') {
+              cellBg = 'FEF3C7';
+              cellFontColor = 'B45309';
+            } else {
+              cellBg = 'F1F5F9';
+              cellFontColor = '64748B';
+            }
+          } else if (c === 13) {
+            alignH = 'left';
+          }
+
+          ws[cellRef].s = {
+            font: { name: 'Segoe UI', sz: 9.5, bold: isBold, color: { rgb: cellFontColor } },
+            fill: { fgColor: { rgb: cellBg } },
+            alignment: { horizontal: alignH, vertical: 'center' },
+            border: borderThin,
+            numFmt: numFormat
+          };
+        }
+      }
+
+      // Estilizar resumen
+      const summaryRowIdx = startRowIdx + rows.length;
+      for (let c = 0; c < headers.length; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r: summaryRowIdx, c });
+        if (!ws[cellRef]) continue;
+
+        let alignH = 'right';
+        let numFormat = undefined;
+        if (c <= 2) alignH = 'center';
+        else if (c === 3 || c === 6) numFormat = '"$"#,##0.00';
+        else if (c === 4 || c === 7) numFormat = '"Bs. "#,##0.00';
+        else if (c === 5) alignH = 'center';
+
+        ws[cellRef].s = {
+          font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: '0F172A' } },
+          fill: { fgColor: { rgb: 'E2E8F0' } },
+          alignment: { horizontal: alignH, vertical: 'center' },
+          border: {
+            top: { style: 'medium', color: { rgb: '475569' } },
+            bottom: { style: 'medium', color: { rgb: '475569' } },
+            left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+            right: { style: 'thin', color: { rgb: 'CBD5E1' } }
+          },
+          numFmt: numFormat
+        };
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Catálogo de Tarifas');
+      const fechaArchivo = hoy.toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `Tarifas_Hotel_${fechaArchivo}.xlsx`);
+      lanzarToast('Catálogo descargado exitosamente en formato Excel (.xlsx).');
+    } catch (err) {
+      console.error('Error al exportar Excel:', err);
+      lanzarToast('Error al generar el archivo Excel.');
+    }
   };
 
   // Actualizar tasa BCV
@@ -373,6 +710,55 @@ export default function Tarifas() {
       ? (tarifasActivas.reduce((acc, t) => acc + (parseFloat(t.precio_base) || 0), 0) / tarifasActivas.length).toFixed(2)
       : '0.00';
 
+  // --- CÁLCULO DE OCUPACIÓN ACTUAL EN TIEMPO REAL (Habitaciones y Reservas) ---
+  const totalHabitaciones = habitaciones.length;
+  const hoyISO = new Date().toISOString().slice(0, 10);
+  const habitacionesOcupadasSet = new Set();
+
+  habitaciones.forEach((hab) => {
+    if (hab.estado && hab.estado.toLowerCase() === 'ocupada') {
+      habitacionesOcupadasSet.add(String(hab.codigo_habitacion));
+    }
+  });
+
+  reservas.forEach((res) => {
+    const estadoRes = (res.estado || '').toUpperCase();
+    if (['CHECKIN', 'CONFIRMADA', 'PENDIENTE'].includes(estadoRes)) {
+      if (res.fecha_checkin && res.fecha_checkout) {
+        const checkin = String(res.fecha_checkin).slice(0, 10);
+        const checkout = String(res.fecha_checkout).slice(0, 10);
+        if (hoyISO >= checkin && hoyISO <= checkout) {
+          habitacionesOcupadasSet.add(String(res.codigo_habitacion));
+        }
+      } else {
+        habitacionesOcupadasSet.add(String(res.codigo_habitacion));
+      }
+    }
+  });
+
+  const cantOcupadas = Math.min(totalHabitaciones, habitacionesOcupadasSet.size);
+  const porcentajeOcupacion =
+    totalHabitaciones > 0 ? Math.round((cantOcupadas / totalHabitaciones) * 100) : 0;
+
+  let badgeOcupacionTexto = 'Disponible';
+  let badgeOcupacionClass = 'kpi-badge-ocupacion-cero';
+
+  if (porcentajeOcupacion >= 80) {
+    badgeOcupacionTexto = 'Alta Demanda';
+    badgeOcupacionClass = 'kpi-badge-ocupacion-alta';
+  } else if (porcentajeOcupacion >= 40) {
+    badgeOcupacionTexto = 'Media';
+    badgeOcupacionClass = 'kpi-badge-ocupacion-media';
+  } else if (porcentajeOcupacion > 0) {
+    badgeOcupacionTexto = 'Activa';
+    badgeOcupacionClass = 'kpi-badge-ocupacion-normal';
+  }
+
+  const subtituloOcupacion =
+    totalHabitaciones > 0
+      ? `${cantOcupadas} de ${totalHabitaciones} hab. ocupadas`
+      : 'Sin habitaciones registradas';
+
   // Mes actual para encabezados dinámicos
   const fechaActual = new Date();
   const nombreMes = fechaActual.toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
@@ -413,7 +799,7 @@ export default function Tarifas() {
         </article>
       </section>
 
-      {/* 2. Tarjetas KPI Superiores (DINÁMICAS Y SIN DATOS ESTÁTICOS) */}
+      {/* 2. Tarjetas KPI Superiores (DINÁMICAS Y VINCULADAS AL SISTEMA) */}
       <section className="kpi-grid">
         <article className="kpi-card">
           <header className="kpi-header">
@@ -444,23 +830,23 @@ export default function Tarifas() {
           <small className="kpi-subtitle">Por noche de hospedaje</small>
         </article>
 
-        {/* Ocupación Actual DESHABILITADA (Sin datos estáticos falsos) */}
+        {/* Ocupación Actual ACTIVA (Vinculada a Habitaciones y Reservas) */}
         <article
-          className="kpi-card kpi-card-disabled"
-          title="Módulo de Reservas en desarrollo. La ocupación se calculará dinámicamente con los check-in reales."
+          className="kpi-card"
+          title={`Ocupación en tiempo real: ${cantOcupadas} de ${totalHabitaciones} habitaciones registradas.`}
         >
           <header className="kpi-header">
-            <span className="kpi-title kpi-title-muted">Ocupación Actual</span>
-            <BedDouble size={18} color="#94a3b8" />
+            <span className="kpi-title">Ocupación Actual</span>
+            <BedDouble size={18} color="#0284c7" />
           </header>
           <div className="kpi-value-row">
-            <h2 className="kpi-value kpi-value-muted">-- %</h2>
-            <span className="kpi-badge-dev">
-              En desarrollo
+            <h2 className="kpi-value">{porcentajeOcupacion}%</h2>
+            <span className={`kpi-badge-ocupacion ${badgeOcupacionClass}`}>
+              {badgeOcupacionTexto}
             </span>
           </div>
-          <small className="kpi-subtitle kpi-subtitle-muted">
-            Pendiente de módulo Reservas
+          <small className="kpi-subtitle">
+            {subtituloOcupacion}
           </small>
         </article>
       </section>
@@ -501,9 +887,9 @@ export default function Tarifas() {
         </div>
 
         <div className="toolbar-actions">
-          <button type="button" className="btn-export-csv" onClick={exportarCSV}>
-            <Download size={16} />
-            <span>Exportar CSV</span>
+          <button type="button" className="btn-export-excel" onClick={exportarExcel} title="Exportar catálogo en Excel (.xlsx)">
+            <FileSpreadsheet size={16} />
+            <span>Exportar Excel</span>
           </button>
 
           <button type="button" className="btn-nueva-tarifa" onClick={abrirModalCrear}>
@@ -614,14 +1000,6 @@ export default function Tarifas() {
                           onClick={() => abrirModalEditar(r)}
                         >
                           <Pencil size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-table-action"
-                          title="Duplicar tarifa"
-                          onClick={() => duplicarTarifa(r.id_tarifa)}
-                        >
-                          <Copy size={16} />
                         </button>
                         <button
                           type="button"
@@ -786,7 +1164,13 @@ export default function Tarifas() {
                   </div>
 
                   <div className="rate-form-group form-group-spaced">
-                    <label className="rate-label">Tipo de habitación</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                      <label className="rate-label" style={{ margin: 0 }}>Tipo de habitación</label>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+                        (Máximo 1 tarifa por habitación)
+                      </span>
+                    </div>
+
                     <div className="rate-select-wrapper">
                       <select
                         name="id_tipo_habitacion"
@@ -794,14 +1178,39 @@ export default function Tarifas() {
                         value={formData.id_tipo_habitacion}
                         onChange={handleInputChange}
                       >
-                        {tiposHabitacion.map((t) => (
-                          <option key={t.id_tipo_habitacion} value={t.id_tipo_habitacion}>
-                            {t.nombre_tipo}
-                          </option>
-                        ))}
+                        {tiposHabitacion.map((t) => {
+                          const asignada = tarifas.find(
+                            (item) =>
+                              String(item.id_tipo_habitacion) === String(t.id_tipo_habitacion) &&
+                              (modoModal === 'CREAR' || item.id_tarifa !== editId)
+                          );
+                          const estaOcupada = Boolean(asignada);
+
+                          return (
+                            <option
+                              key={t.id_tipo_habitacion}
+                              value={t.id_tipo_habitacion}
+                              disabled={estaOcupada}
+                            >
+                              {t.nombre_tipo} {estaOcupada ? `— (Ya asignada: #${asignada.id_tarifa} ${asignada.nombre_tarifa})` : '✓ Disponible'}
+                            </option>
+                          );
+                        })}
                       </select>
                       <ChevronDown className="select-chevron-icon" size={16} />
                     </div>
+
+                    {tarifaConflicto ? (
+                      <div className="rate-room-warning-box">
+                        <span>
+                          ⚠️ <strong>Habitación no disponible:</strong> Ya tiene asignada la tarifa <strong>"{tarifaConflicto.nombre_tarifa}"</strong> (#TAR-{tarifaConflicto.id_tarifa}). Para agregar una nueva, debes eliminar la existente en la tabla principal.
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="rate-helper-text" style={{ marginTop: '0.4rem', color: '#16a34a', fontWeight: 600 }}>
+                        ✓ Habitación disponible para asignarle tarifa.
+                      </div>
+                    )}
                   </div>
                 </section>
 
@@ -970,7 +1379,8 @@ export default function Tarifas() {
                 type="button"
                 className="btn-action-create"
                 onClick={() => guardarTarifa(false)}
-                disabled={guardando}
+                disabled={guardando || Boolean(tarifaConflicto)}
+                title={tarifaConflicto ? 'Esta habitación ya tiene una tarifa asignada. Elimina la existente primero.' : ''}
               >
                 <Check size={16} />
                 <span>{guardando ? 'Guardando...' : modoModal === 'CREAR' ? 'Crear tarifa' : 'Guardar cambios'}</span>
@@ -980,7 +1390,8 @@ export default function Tarifas() {
                 type="button"
                 className="btn-action-draft"
                 onClick={() => guardarTarifa(true)}
-                disabled={guardando}
+                disabled={guardando || Boolean(tarifaConflicto)}
+                title={tarifaConflicto ? 'Esta habitación ya tiene una tarifa asignada. Elimina la existente primero.' : ''}
               >
                 Guardar borrador
               </button>
@@ -1156,7 +1567,125 @@ export default function Tarifas() {
         </div>
       )}
 
-      {/* 10. Toasts flotantes */}
+      {/* ======================================================================
+          10. MODAL: LÍMITE DE UNA TARIFA POR HABITACIÓN (CATÁLOGO COMPLETO)
+          ====================================================================== */}
+      {modalLimiteAbierto && (
+        <div className="modal-overlay" onClick={() => setModalLimiteAbierto(false)}>
+          <div
+            className="modal-small-card modal-limite-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-limite-title"
+          >
+            {/* Botón Cerrar Superior */}
+            <button
+              type="button"
+              className="modal-limite-close-btn"
+              onClick={() => setModalLimiteAbierto(false)}
+              aria-label="Cerrar modal"
+            >
+              <X size={18} />
+            </button>
+
+            {/* Encabezado Visual con Icono y Badge de Capacidad */}
+            <div className="modal-limite-header-banner">
+              <div className="modal-limite-icon-wrapper">
+                <div className="modal-limite-icon-glow" />
+                <div className="modal-limite-icon-circle">
+                  <BedDouble size={30} color="#b45309" />
+                </div>
+              </div>
+
+              <div className="modal-limite-badge-pill">
+                <span className="badge-pulse-dot" />
+                <span>Capacidad Máxima de Tarifas</span>
+              </div>
+
+              <h3 id="modal-limite-title" className="modal-limite-title">
+                Todas las Habitaciones Tienen Tarifa
+              </h3>
+
+              <p className="modal-limite-subtitle">
+                Actualmente todas las habitaciones registradas en el hotel cuentan con una tarifa asignada en el catálogo. No es posible crear tarifas adicionales.
+              </p>
+            </div>
+
+            {/* Regla de Negocio Explicativa */}
+            <div className="modal-limite-rule-box">
+              <div className="modal-limite-rule-icon">
+                <AlertCircle size={20} color="#b45309" />
+              </div>
+              <div className="modal-limite-rule-content">
+                <h4 className="modal-limite-rule-heading">Regla: 1 Tarifa por Habitación</h4>
+                <p className="modal-limite-rule-desc">
+                  El sistema permite <strong>únicamente 1 tarifa activa por habitación</strong>. Si deseas modificar las condiciones o precios de una habitación, primero debes <strong>eliminar la tarifa actual</strong> en la tabla o editarla directamente.
+                </p>
+              </div>
+            </div>
+
+            {/* Listado Desglosado de Habitaciones y sus Tarifas Asignadas */}
+            {tarifas.length > 0 && (
+              <div className="modal-limite-inventory-section">
+                <div className="modal-limite-inventory-header">
+                  <span className="inventory-header-title">
+                    Habitaciones Asignadas ({new Set(tarifas.map((t) => String(t.id_tipo_habitacion))).size} de {tiposHabitacion.length || new Set(tarifas.map((t) => String(t.id_tipo_habitacion))).size})
+                  </span>
+                  <span className="inventory-header-tag">100% Cubierto</span>
+                </div>
+
+                <div className="modal-limite-inventory-grid">
+                  {tarifas.map((t) => (
+                    <div key={t.id_tarifa} className="modal-limite-room-card">
+                      <div className="room-card-left">
+                        <div className="room-card-icon">
+                          <BedDouble size={16} color="#2563eb" />
+                        </div>
+                        <div className="room-card-info">
+                          <span className="room-card-name">{t.nombre_habitacion}</span>
+                          <span className="room-card-rate-name">
+                            <span className="rate-code-pill">#TAR-{t.id_tarifa}</span>
+                            {t.nombre_tarifa}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="room-card-right">
+                        <span className="room-card-usd">{formatUSD(t.precio_base)}</span>
+                        <small className="room-card-bs">
+                          {formatBs((parseFloat(t.precio_base) || 0) * bcvRate)}
+                        </small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Botones de Acción */}
+            <div className="modal-limite-footer">
+              <button
+                type="button"
+                className="btn-limite-secondary"
+                onClick={() => setModalLimiteAbierto(false)}
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                className="btn-limite-primary"
+                onClick={() => setModalLimiteAbierto(false)}
+              >
+                <Check size={16} />
+                <span>Entendido, ver catálogo</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 11. Toasts flotantes */}
       <aside className="toast-container-fixed">
         {toasts.map((t) => (
           <article key={t.id} className="toast-item">
