@@ -8,6 +8,7 @@ import Habitaciones from './componentes/Vistas/Habitaciones';
 import Finanzas from './componentes/Vistas/Finanzas';
 import GestionUsuariosRoles from './componentes/Vistas/GestionUsuariosRoles';
 import Reservas from './componentes/Vistas/Reservas';
+import ChatChavoo from './componentes/Vistas/chat_chavoo'; 
 import './App.css';
 
 export default function App() {
@@ -15,7 +16,6 @@ export default function App() {
   const [menuColapsado, setMenuColapsado] = useState(false);
   const [vistaActual, setVistaActual] = useState('inicio');
 
-  // Verificar si ya hay una sesión guardada al recargar la página
   useEffect(() => {
     const sesionGuardada = localStorage.getItem('sesion_activa');
     if (sesionGuardada) {
@@ -23,7 +23,6 @@ export default function App() {
     }
   }, []);
 
-  // Seleccionar automáticamente la primera vista permitida según los módulos del rol
   useEffect(() => {
     if (sesionActiva && sesionActiva.modulos) {
       const mapaModulos = {
@@ -35,8 +34,7 @@ export default function App() {
         6: 'tarifas',
         7: 'auditoria',
         8: 'emergencia',
-        9: 'roles',
-        10: 'chat'
+        9: 'roles'
       };
       const primerMod = sesionActiva.modulos.find(id => mapaModulos[id]);
       if (primerMod) {
@@ -54,12 +52,14 @@ export default function App() {
     setSesionActiva(null);
   };
 
-  // Si no hay sesión activa, mostramos la pantalla de Login
   if (!sesionActiva) {
     return <Login onIniciarSesion={(datosUsuario) => setSesionActiva(datosUsuario)} />;
   }
 
-  // Si hay sesión activa, mostramos el layout principal del sistema
+  // Validación de permisos para el Chat Chavoo (Módulo 10)
+  const modulosPermitidos = sesionActiva?.modulos;
+  const tieneAccesoChat = !modulosPermitidos || modulosPermitidos.includes(10);
+
   return (
     <main className={`layout-principal ${menuColapsado ? 'menu-colapsado' : ''}`}>
       <MenuLateral 
@@ -81,6 +81,8 @@ export default function App() {
           {vistaActual === 'inicio' && <section><h2>Vista de Inicio</h2></section>}
         </article>
       </section>
+
+      {tieneAccesoChat && <ChatChavoo />} 
     </main>
   );
 }

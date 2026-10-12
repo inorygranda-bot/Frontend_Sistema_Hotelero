@@ -1,0 +1,219 @@
+@import './variables.css';
+
+/* Botón flotante para abrir el chat de Chavoo */
+.boton-flotante-chavoo {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 60px;
+  height: 60px;
+  background-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  transition: transform var(--transicion-rapida), background-color var(--transicion-rapida);
+  border: 2px solid var(--color-superficie);
+}
+
+.boton-flotante-chavoo:hover {
+  transform: scale(1.08);
+  background-color: var(--color-primario-hover);
+}
+
+.icono-bot-svg {
+  width: 26px;
+  height: 26px;
+  stroke: currentColor;
+  fill: none;
+}
+
+/* Ventana flotante principal del chat */
+.ventana-flotante-chavoo {
+  position: fixed;
+  bottom: 5.5rem;
+  right: 2rem;
+  width: 380px;
+  height: 520px;
+  background-color: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  overflow: hidden;
+  animation: aparecerChat 0.25s ease-in-out;
+}
+
+@keyframes aparecerChat {
+  from {
+    opacity: 0;
+    transform: translateY(15px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.encabezado-asistente {
+  background-color: var(--color-menu-fondo);
+  color: var(--color-texto-inverso);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.grupo-titulo-asistente {
+  display: flex;
+  flex-direction: column;
+}
+
+.titulo-asistente {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.subtitulo-asistente {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #cbd5e1;
+}
+
+.punto-en-linea {
+  width: 8px;
+  height: 8px;
+  background-color: #22c55e;
+  border-radius: 50%;
+}
+
+.boton-cerrar-asistente {
+  background: none;
+  border: none;
+  color: var(--color-texto-inverso);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  transition: background-color var(--transicion-rapida);
+}
+
+.boton-cerrar-asistente:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.area-mensajes-chavoo {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background-color: var(--color-fondo);
+}
+
+.mensaje-item {
+  max-width: 82%;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.mensaje-item.bot {
+  align-self: flex-start;
+  background-color: var(--color-superficie);
+  color: var(--color-texto-principal);
+  border: 1px solid var(--color-borde);
+  border-bottom-left-radius: 2px;
+}
+
+.mensaje-item.usuario {
+  align-self: flex-end;
+  background-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+  border-bottom-right-radius: 2px;
+}
+
+.hora-mensaje {
+  display: block;
+  font-size: 0.65rem;
+  margin-top: 0.3rem;
+  text-align: right;
+  opacity: 0.7;
+}
+
+.acciones-rapidas-chavoo {
+  padding: 0.5rem 0.75rem;
+  background-color: var(--color-superficie);
+  border-top: 1px solid var(--color-borde);
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.boton-accion-rapida {
+  background-color: #eff6ff;
+  color: var(--color-primario);
+  border: 1px solid #bfdbfe;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transicion-rapida);
+}
+
+.boton-accion-rapida:hover {
+  background-color: #dbeafe;
+}
+
+.pie-asistente-chavoo {
+  padding: 0.75rem 1rem;
+  background-color: var(--color-superficie);
+  border-top: 1px solid var(--color-borde);
+}
+
+.formulario-chat-chavoo {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.input-chat-chavoo {
+  flex: 1;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--color-borde);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background-color: var(--color-fondo);
+  color: var(--color-texto-principal);
+}
+
+.input-chat-chavoo:focus {
+  border-color: var(--color-primario);
+  background-color: var(--color-superficie);
+}
+
+.boton-enviar-chat-chavoo {
+  background-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+  padding: 0 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color var(--transicion-rapida);
+}
+
+.boton-enviar-chat-chavoo:hover {
+  background-color: var(--color-primario-hover);
+}
