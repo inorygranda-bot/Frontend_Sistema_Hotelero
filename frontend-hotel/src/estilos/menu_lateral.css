@@ -1,6 +1,16 @@
-/* Botón Hamburguesa Móvil */
+/* Botón Hamburguesa para Teléfonos */
 .boton-menu-movil {
   display: none;
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1001;
+  background-color: var(--color-fondo-menu, #0B132B);
+  color: #FFFFFF;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 /* Capa Oscura de Fondo */
@@ -20,28 +30,23 @@
   opacity: 1;
 }
 
-/* Menú Lateral Principal (Corregida la clase de .contenedor-menu a .menu-lateral) */
-.menu-lateral {
+/* Menú Lateral Principal */
+.contenedor-menu {
   width: 260px;
-  min-height: 100vh;
-  background-color: var(--color-menu-fondo, #0B132B);
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background-color: var(--color-fondo-menu, #0B132B);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: 1.25rem 1rem;
-  flex-shrink: 0;
-  transition: width 0.3s ease, padding 0.3s ease, opacity 0.2s ease;
   z-index: 1000;
+  transition: transform 0.3s ease;
 }
 
-/* Estado Colapsado */
-.menu-lateral.colapsado {
-  width: 0;
-  padding: 0;
-  overflow: hidden;
-  opacity: 0;
-}
-
+/* Encabezado del Menú (Logo) */
 .encabezado-menu {
   display: flex;
   align-items: center;
@@ -50,10 +55,35 @@
   color: #FFFFFF;
 }
 
-.logo-hotel {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #FFFFFF;
+.caja-icono-logo {
+  margin: 0;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  background-color: var(--azul-principal, #2563EB);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.texto-logo {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 1rem;
+  font-weight: normal;
+}
+
+.texto-logo strong {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.texto-logo small {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.5px;
 }
 
 /* Navegación y Lista de Opciones */
@@ -82,19 +112,18 @@
   font-weight: 500;
   border-radius: 8px;
   transition: all 0.2s ease-in-out;
-  white-space: nowrap;
 }
 
-/* Hover */
+/* Efecto al pasar el cursor (Hover) */
 .lista-menu a:hover,
 .pie-menu a:hover {
   color: #FFFFFF;
   background-color: rgba(255, 255, 255, 0.08);
 }
 
-/* Opción Activa */
+/* Opción Seleccionada (Activa) */
 .lista-menu a.activo {
-  background-color: var(--color-primario, #2563EB);
+  background-color: var(--azul-principal, #2563EB);
   color: #FFFFFF;
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
@@ -107,7 +136,7 @@
   flex-shrink: 0;
 }
 
-/* Pie del Menú */
+/* Sección Inferior del Menú */
 .pie-menu {
   display: flex;
   flex-direction: column;
@@ -116,55 +145,17 @@
   padding-top: 1rem;
 }
 
-.caja-icono-logo {
-  margin: 0;
-  padding: 0;
-  width: 40px;
-  height: 40px;
-  background-color: var(--color-primario, #2563EB);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.caja-icono-logo svg {
-  width: 22px;
-  height: 22px;
-  color: #ffffff;
-}
-
-.texto-logo {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  font-size: 1rem;
-  font-weight: normal;
-}
-
-.texto-logo strong {
-  font-size: 1.1rem;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-/* Ajuste Móvil */
+/* Estilos para Pantallas de Teléfono (Móviles) */
 @media (max-width: 768px) {
   .boton-menu-movil {
     display: block;
   }
 
-  .menu-lateral {
-    position: fixed;
-    top: 0;
-    left: 0;
-    transform: translateX(0);
+  .contenedor-menu {
+    transform: translateX(-100%);
   }
 
-  .menu-lateral.colapsado {
-    transform: translateX(-100%);
-    width: 260px;
-    opacity: 1;
+  .contenedor-menu.activo {
+    transform: translateX(0);
   }
 }
