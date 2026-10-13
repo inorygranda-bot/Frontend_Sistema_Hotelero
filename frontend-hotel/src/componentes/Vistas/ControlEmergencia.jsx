@@ -2,44 +2,58 @@ import React, { useState, useEffect } from 'react';
 import '../../estilos/control_emergencia.css';
 
 export default function ControlEmergencia({ usuario }) {
-  const [estadoEmergencia, setEstadoEmergencia] = useState('NORMAL'); // 'NORMAL' | 'ALERTA'
+  const [estadoEmergencia, setEstadoEmergencia] = useState('NORMAL');
   const [modalPasswordAbierto, setModalPasswordAbierto] = useState(false);
   const [passwordAdmin, setPasswordAdmin] = useState('');
   const [errorPassword, setErrorPassword] = useState('');
   
   const [mensajeAlerta, setMensajeAlerta] = useState('ATENCION: Se ha activado el protocolo de emergencia en el hotel. Por favor, dirijase con calma a la salida de emergencia más cercana.');
   const [enviandoMensaje, setEnviandoMensaje] = useState(false);
+  const [cargandoDatos, setCargandoDatos] = useState(true);
 
   const [huespedesActivos, setHuespedesActivos] = useState([]);
-
   const [alertaModal, setAlertaModal] = useState({ abierto: false, tipo: 'exito', titulo: '', mensaje: '' });
 
-  const cargarHuespedesActivos = async () => {
+  const sincronizarSistema = async () => {
+    setCargandoDatos(true);
     try {
-      const respuesta = await fetch('http://localhost:3000/api/emergencia/activos');
-      if (respuesta.ok) {
-        const datos = await respuesta.json();
-        setHuespedesActivos(Array.isArray(datos) ? datos.map(h => ({ ...h, seguro: false })) : []);
+      const respEstado = await fetch('http://localhost:3000/api/emergencia/estado');
+      if (respEstado.ok) {
+        const datosEstado = await respEstado.json();
+        setEstadoEmergencia(datosEstado.estado || 'NORMAL');
+      }
+
+      const respHuespedes = await fetch('http://localhost:3000/api/emergencia/activos');
+      if (respHuespedes.ok) {
+        const datosHuespedes = await respHuespedes.json();
+        setHuespedesActivos(Array.isArray(datosHuespedes) ? datosHuespedes.map(h => ({ ...h, seguro: false })) : []);
       }
     } catch (err) {
-      console.error('Error al cargar huéspedes activos:', err);
+      console.error('Error al sincronizar datos del sistema:', err);
+    } finally {
+      setCargandoDatos(false);
     }
   };
 
   useEffect(() => {
-    cargarHuespedesActivos();
+    sincronizarSistema();
   }, []);
 
   const intentarActivarAlerta = async (e) => {
     e.preventDefault();
+
+    if (!usuario || !usuario.id_usuario) {
+      setErrorPassword('No se detectó una sesión de usuario válida. Por favor, vuelva a iniciar sesión.');
+      return;
+    }
+
     try {
       const respuesta = await fetch('http://localhost:3000/api/emergencia/activar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id_usuario: usuario?.id_usuario || 1,
-          contrasenna_admin: passwordAdmin,
-          mensaje_emitido: mensajeAlerta
+          id_usuario: usuario.id_usuario,
+          contrasenna_admin: passwordAdmin
         })
       });
 
@@ -53,7 +67,7 @@ export default function ControlEmergencia({ usuario }) {
       setModalPasswordAbierto(false);
       setPasswordAdmin('');
       setErrorPassword('');
-      await cargarHuespedesActivos();
+      await sincronizarSistema();
 
       setAlertaModal({
         abierto: true,
@@ -66,15 +80,29 @@ export default function ControlEmergencia({ usuario }) {
     }
   };
 
-  const desactivarAlerta = () => {
-    setEstadoEmergencia('NORMAL');
-    setHuespedesActivos(prev => prev.map(h => ({ ...h, seguro: false })));
-    setAlertaModal({
-      abierto: true,
-      tipo: 'exito',
-      titulo: 'Sistema Normalizado',
-      mensaje: 'Se ha desactivado el estado de emergencia con éxito.'
-    });
+  const desactivarAlerta = async () => {
+    try {
+      const respuesta = await fetch('http://localhost:3000/api/emergencia/desactivar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_usuario: usuario?.id_usuario || 1 })
+      });
+
+      if (!respuesta.ok) {
+        throw new Error('Error al normalizar el sistema en el servidor.');
+      }
+
+      setEstadoEmergencia('NORMAL');
+      setHuespedesActivos(prev => prev.map(h => ({ ...h, seguro: false })));
+      setAlertaModal({
+        abierto: true,
+        tipo: 'exito',
+        titulo: 'Sistema Normalizado',
+        mensaje: 'Se ha desactivado el estado de emergencia con éxito en la red del hotel.'
+      });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const toggleMarcarSeguro = (idHuesped) => {
@@ -116,6 +144,14 @@ export default function ControlEmergencia({ usuario }) {
   const totalHuespedes = huespedesActivos.length;
   const totalSeguros = huespedesActivos.filter(h => h.seguro).length;
   const porcentajeSeguros = totalHuespedes > 0 ? Math.round((totalSeguros / totalHuespedes) * 100) : 0;
+
+  if (cargandoDatos) {
+    return (
+      <section className="contenedor-emergencia" style={{ textAlign: 'center', padding: '3rem' }}>
+        <h2>Sincronizando estado del sistema de emergencias...</h2>
+      </section>
+    );
+  }
 
   return (
     <section className="contenedor-emergencia">
@@ -225,6 +261,7 @@ export default function ControlEmergencia({ usuario }) {
                   <th>Huesped</th>
                   <th>Documento</th>
                   <th>Habitacion</th>
+                  <th>Piso</th>
                   <th>Telefono Registrado</th>
                   <th>Estado Actual</th>
                 </tr>
@@ -247,6 +284,7 @@ export default function ControlEmergencia({ usuario }) {
                       </td>
                       <td>{h.num_documento}</td>
                       <td>Hab. {h.codigo_habitacion}</td>
+                      <td>Piso {h.piso}</td>
                       <td>{h.telefono || 'N/A'}</td>
                       <td>
                         <span className={`badge-estado-seguro ${h.seguro ? 'seguro' : 'pendiente'}`}>
@@ -257,7 +295,7 @@ export default function ControlEmergencia({ usuario }) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="6" className="tabla-vacia" style={{ textAlign: 'center', padding: '2rem' }}>
+                    <td colSpan="7" className="tabla-vacia" style={{ textAlign: 'center', padding: '2rem' }}>
                       No hay huéspedes con Check-in activo actualmente en el hotel.
                     </td>
                   </tr>
