@@ -80,7 +80,7 @@ export default function App() {
           {vistaActual === 'roles' && <GestionUsuariosRoles />}
           {vistaActual === 'reservas' && <Reservas />}
           {vistaActual === 'inicio' && <section><h2>Vista de Inicio</h2></section>}
-          {vistaActual === 'emergencia' && <ControlEmergencia />}
+          {vistaActual === 'emergencia' && <ControlEmergencia usuario={sesionActiva} />}
         </article>
       </section>
     </main>

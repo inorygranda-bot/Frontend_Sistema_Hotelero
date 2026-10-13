@@ -21,26 +21,34 @@ export default function Login({ onIniciarSesion }) {
 
     setCargando(true);
 
+    // Controlador de tiempo límite (Timeout) de 6 segundos por seguridad
+    const controlador = new AbortController();
+    const idTimeout = setTimeout(() => controlador.abort(), 6000);
+
     try {
-      // Petición real al backend para validar credenciales y contraseña hasheada
       const respuesta = await fetch(API_LOGIN_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ correo, contrasenna })
+        body: JSON.stringify({ correo, contrasenna }),
+        signal: controlador.signal
       });
 
+      clearTimeout(idTimeout);
       const datos = await respuesta.json();
 
       if (!respuesta.ok) {
         throw new Error(datos.mensaje || 'Correo o contraseña incorrectos.');
       }
 
-      // Si el servidor aprueba las credenciales, guardamos la sesión y entramos
       localStorage.setItem('sesion_activa', JSON.stringify(datos.usuario));
       onIniciarSesion(datos.usuario);
 
     } catch (err) {
-      setError(err.message || 'Error al conectar con el servidor.');
+      if (err.name === 'AbortError') {
+        setError('El servidor tardó demasiado en responder. Verifique que el backend esté encendido.');
+      } else {
+        setError(err.message || 'Error al conectar con el servidor.');
+      }
     } finally {
       setCargando(false);
     }
