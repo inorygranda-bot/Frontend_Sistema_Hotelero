@@ -1,0 +1,134 @@
+/* ==========================================================================
+   ESTILOS DEL MÓDULO DE AUDITORÍA Y TRAZABILIDAD
+   ========================================================================== */
+
+.contenedor-auditoria {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  animation: fadeInAuditoria 0.25s ease-out;
+}
+
+@keyframes fadeInAuditoria {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tarjeta-resumen-auditoria {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.item-metrica-auditoria {
+  background-color: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: 12px;
+  padding: 1.15rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  box-shadow: var(--sombra-suave);
+}
+
+.etiqueta-metrica-auditoria {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: var(--color-texto-secundario);
+}
+
+.valor-metrica-auditoria {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--color-texto-principal);
+  margin: 0.15rem 0;
+}
+
+.badge-modulo {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+.badge-accion {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.badge-accion.crear {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.badge-accion.actualizar {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.badge-accion.eliminar {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.badge-accion.acceso {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.badge-accion.alerta {
+  background-color: #f3e8ff;
+  color: #7e22ce;
+}
+
+.texto-secundario {
+  color: var(--color-texto-secundario, #64748b);
+}
+
+.valor-hoy {
+  color: #2563eb;
+}
+
+.valor-seguro {
+  font-size: 1.25rem;
+  color: #16a34a;
+  margin-top: 0.4rem;
+}
+
+.texto-negrita {
+  font-weight: 600;
+}
+
+.descripcion-recortada {
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.85rem;
+}
+
+.caja-espaciada {
+  margin-top: 1rem;
+}
+
+.texto-espaciado {
+  margin-top: 0.4rem;
+  white-space: pre-wrap;
+}
+
+.bloque-codigo {
+  background: #f1f5f9;
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  overflow-x: auto;
+  margin-top: 0.4rem;
+}
