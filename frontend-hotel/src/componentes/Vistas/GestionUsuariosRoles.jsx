@@ -155,6 +155,7 @@ export default function GestionUsuariosRoles() {
 
       setModalRolAbierto(false);
       cargarDatos();
+      window.dispatchEvent(new Event('sesion_actualizada'));
       setAlerta({
         abierto: true,
         tipo: 'exito',
@@ -236,6 +237,7 @@ export default function GestionUsuariosRoles() {
 
             setModalUsuarioAbierto(false);
             cargarDatos();
+            window.dispatchEvent(new Event('sesion_actualizada'));
             setAlerta({
                 abierto: true,
                 tipo: 'exito',
