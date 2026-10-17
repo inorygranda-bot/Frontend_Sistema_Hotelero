@@ -182,3 +182,18 @@
     border-right-color: var(--border);
   }
 }
+
+.layout-principal {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden; /* Evita el scroll general de toda la ventana */
+}
+
+.contenido-principal {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto; /* El scroll ocurre únicamente en el contenido del módulo, la barra lateral se queda estática */
+}

@@ -56,9 +56,12 @@
   color: #FFFFFF;
 }
 
-/* Navegación y Lista de Opciones */
 .navegacion-principal {
   flex-grow: 1;
+  overflow-y: auto;       
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  scrollbar-width: thin;  
 }
 
 .lista-menu {
@@ -156,11 +159,20 @@
   }
 
   .menu-lateral {
-    position: fixed;
-    top: 0;
-    left: 0;
-    transform: translateX(0);
-  }
+  width: 260px;
+  height: 100vh;           
+  position: sticky;        
+  top: 0;                  
+  background-color: var(--color-menu-fondo, #0B132B);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.25rem 1rem;
+  flex-shrink: 0;
+  transition: width 0.3s ease, padding 0.3s ease, opacity 0.2s ease;
+  z-index: 1000;
+  box-sizing: border-box;  
+}
 
   .menu-lateral.colapsado {
     transform: translateX(-100%);

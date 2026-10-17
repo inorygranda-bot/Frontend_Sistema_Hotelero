@@ -9,6 +9,7 @@ import Habitaciones from './componentes/Vistas/Habitaciones';
 import Finanzas from './componentes/Vistas/Finanzas';
 import GestionUsuariosRoles from './componentes/Vistas/GestionUsuariosRoles';
 import Reservas from './componentes/Vistas/Reservas';
+import ControlEmergencia from './componentes/Vistas/ControlEmergencia';
 import './App.css';
 
 export default function App() {
@@ -80,8 +81,7 @@ export default function App() {
         6: 'tarifas',
         7: 'auditoria',
         8: 'emergencia',
-        9: 'roles',
-        10: 'chat'
+        9: 'roles'
       };
 
       const modulosNumeros = sesionActiva.modulos.map(Number);
@@ -129,28 +129,8 @@ export default function App() {
           {vistaActual === 'finanzas' && <Finanzas usuario={sesionActiva} />}
           {vistaActual === 'roles' && <GestionUsuariosRoles />}
           {vistaActual === 'reservas' && <Reservas />}
-          {vistaActual === 'inicio' && <Inicio setVistaActual={setVistaActual} usuario={sesionActiva} />}
-          {vistaActual === 'auditoria' && (
-            <div style={{ padding: '2rem', textAlign: 'center', background: '#fff', borderRadius: '16px', margin: '1rem' }}>
-              <h2 style={{ color: '#0f172a', marginBottom: '0.5rem' }}>Módulo de Auditoría</h2>
-              <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>El registro de auditoría y trazabilidad está activo en el sistema.</p>
-              <button type="button" onClick={() => setVistaActual('inicio')} style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Volver al Inicio</button>
-            </div>
-          )}
-          {vistaActual === 'emergencia' && (
-            <div style={{ padding: '2rem', textAlign: 'center', background: '#fff', borderRadius: '16px', margin: '1rem' }}>
-              <h2 style={{ color: '#0f172a', marginBottom: '0.5rem' }}>Control de Emergencias</h2>
-              <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>Protocolos de seguridad y respuesta ante emergencias activos.</p>
-              <button type="button" onClick={() => setVistaActual('inicio')} style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Volver al Inicio</button>
-            </div>
-          )}
-          {vistaActual === 'chat' && (
-            <div style={{ padding: '2rem', textAlign: 'center', background: '#fff', borderRadius: '16px', margin: '1rem' }}>
-              <h2 style={{ color: '#0f172a', marginBottom: '0.5rem' }}>Chat Chavoo</h2>
-              <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>Canal de asistencia y comunicación interna del hotel.</p>
-              <button type="button" onClick={() => setVistaActual('inicio')} style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Volver al Inicio</button>
-            </div>
-          )}
+          {vistaActual === 'inicio' && <Inicio usuario={sesionActiva} setVistaActual={setVistaActual} />}
+          {vistaActual === 'emergencia' && <ControlEmergencia usuario={sesionActiva} />}
         </article>
       </section>
     </main>

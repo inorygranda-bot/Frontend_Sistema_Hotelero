@@ -1328,3 +1328,24 @@
     align-items: flex-start;
   }
 }
+
+.action-blue { background-color: #eff6ff; color: #2563eb; }
+.action-skyblue { background-color: #f0f9ff; color: #0284c7; }
+.action-teal { background-color: #f0fdfa; color: #0d9488; }
+.action-green { background-color: #f0fdf4; color: #16a34a; }
+.action-purple { background-color: #f5f3ff; color: #7c3aed; }
+.action-orange { background-color: #fff7ed; color: #ea580c; }
+.action-slate { background-color: #f1f5f9; color: #475569; }
+.action-red { background-color: #fef2f2; color: #dc2626; }
+.action-indigo { background-color: #eef2ff; color: #4f46e5; }
+
+.kpi-blue { background-color: #eff6ff; color: #2563eb; }
+.kpi-orange { background-color: #fff7ed; color: #ea580c; }
+.kpi-green { background-color: #f0fdf4; color: #16a34a; }
+.kpi-skyblue { background-color: #eff6ff; color: #0284c7; }
+.kpi-amber { background-color: #fffbeb; color: #d97706; }
+
+.chart-bar-rect { fill: #dbeafe; transition: fill 0.2s ease; }
+.chart-bar-rect.peak { fill: #2563eb; }
+.chart-bar-rect.hovered { fill: #93c5fd; }
+.chart-bar-rect.peak.hovered { fill: #1d4ed8; }

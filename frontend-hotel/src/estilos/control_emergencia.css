@@ -1,0 +1,189 @@
+/* ==========================================================================
+   ESTILOS DEL MÓDULO DE CONTROL DE EMERGENCIA
+   ========================================================================== */
+
+.contenedor-emergencia {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  animation: fadeIn 0.25s ease-out;
+}
+
+/* Banner de Estado */
+.banner-estado-emergencia {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-borde);
+  background-color: var(--color-superficie);
+  box-shadow: var(--sombra-suave);
+  transition: all 0.3s ease;
+}
+
+.banner-estado-emergencia.normal {
+  border-left: 6px solid var(--color-exito);
+}
+
+.banner-estado-emergencia.alerta {
+  background-color: #fef2f2;
+  border-color: #fca5a5;
+  border-left: 6px solid var(--color-error);
+  animation: pulsoAlerta 1.5s infinite;
+}
+
+@keyframes pulsoAlerta {
+  0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.2); }
+  70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+.info-estado h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-texto-principal);
+  margin: 0 0 0.25rem 0;
+}
+
+.info-estado p {
+  font-size: 0.85rem;
+  color: var(--color-texto-secundario);
+  margin: 0;
+}
+
+/* Panel de Métricas / Gráficas Estado Normal */
+.grid-metricas-emergencia {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.tarjeta-metrica {
+  background-color: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: var(--sombra-suave);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.titulo-metrica {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-texto-secundario);
+}
+
+.valor-metrica {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--color-texto-principal);
+}
+
+.barra-progreso-mini {
+  width: 100%;
+  height: 6px;
+  background-color: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 0.25rem;
+}
+
+.progreso-relleno {
+  height: 100%;
+  background-color: var(--color-primario);
+  border-radius: 999px;
+}
+
+/* Sección de Mensajería Masiva */
+.tarjeta-mensajeria {
+  background-color: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: var(--sombra-suave);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.titulo-seccion-emergencia {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-texto-principal);
+  margin: 0;
+}
+
+.caja-textarea-mensaje {
+  width: 100%;
+  min-height: 90px;
+  padding: 0.75rem;
+  border: 1px solid var(--color-borde);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.caja-textarea-mensaje:focus {
+  border-color: var(--color-primario);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Estilos de la Tabla de Reporte de Evacuación */
+.tabla-seguridad-huespedes {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.tabla-seguridad-huespedes th {
+  background-color: #f8fafc;
+  color: var(--color-texto-secundario);
+  font-weight: 600;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.tabla-seguridad-huespedes td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: var(--color-texto-principal);
+  vertical-align: middle;
+}
+
+.fila-huesped-seguro {
+  background-color: #f0fdf4 !important;
+  transition: background-color 0.2s;
+}
+
+.checkbox-seguro {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--color-exito);
+  cursor: pointer;
+}
+
+.badge-estado-seguro {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.badge-estado-seguro.seguro {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.badge-estado-seguro.pendiente {
+  background-color: #fef3c7;
+  color: #b45309;
+}
