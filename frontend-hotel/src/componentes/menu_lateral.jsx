@@ -8,10 +8,22 @@ export default function MenuLateral({ colapsado, vistaActual, setVistaActual, ce
     setVistaActual(nombreVista);
   };
 
-  const handleCerrarSesion = (e) => {
+  const handleCerrarSesion = async (e) => {
     e.preventDefault();
-    if (cerrarSesion) {
-      cerrarSesion();
+    try {
+      if (usuario?.id_usuario) {
+        await fetch('http://localhost:3000/api/usuarios/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id_usuario: usuario.id_usuario })
+        });
+      }
+    } catch (err) {
+      console.error('Error al notificar cierre de sesión al servidor:', err);
+    } finally {
+      if (cerrarSesion) {
+        cerrarSesion();
+      }
     }
   };
 

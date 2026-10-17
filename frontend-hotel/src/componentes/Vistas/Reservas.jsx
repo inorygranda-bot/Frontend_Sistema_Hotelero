@@ -278,8 +278,12 @@ export default function Reservas() {
   };
 
   const eliminarReserva = async (codigoReserva) => {
+
+    const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+    const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
     try {
-      const respuesta = await fetch(`${API_RESERVAS_URL}/${codigoReserva}`, { method: 'DELETE' });
+      const respuesta = await fetch(`${API_RESERVAS_URL}/${codigoReserva}?id_usuario=${idUsuarioActual}`, { method: 'DELETE' });
       const data = await respuesta.json().catch(() => ({}));
       if (!respuesta.ok) throw new Error(data.mensaje || 'No se pudo eliminar la reserva.');
 
@@ -319,11 +323,14 @@ export default function Reservas() {
     const esCrear = modoModal === 'CREAR';
     const url = esCrear ? API_RESERVAS_URL : `${API_RESERVAS_URL}/${formDataReserva.codigo_reserva}`;
     const metodo = esCrear ? 'POST' : 'PUT';
+    const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+    const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
 
     try {
       const payload = {
         ...formDataReserva,
-        monto_pagado: finanzasForm.totalUSD
+        monto_pagado: finanzasForm.totalUSD,
+        id_usuario: idUsuarioActual
       };
 
       const respuesta = await fetch(url, {
@@ -361,12 +368,17 @@ export default function Reservas() {
   };
 
   const cambiarEstadoReserva = async (nuevoEstado) => {
+
     if (!reservaSeleccionada) return;
+
+    const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+    const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
     try {
       const respuesta = await fetch(`${API_RESERVAS_URL}/${reservaSeleccionada.codigo_reserva}/estado`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: nuevoEstado })
+        body: JSON.stringify({ estado: nuevoEstado, id_usuario: idUsuarioActual }) // <-- Enviamos el usuario responsable
       });
 
       const datos = await respuesta.json().catch(() => ({}));
@@ -496,7 +508,7 @@ export default function Reservas() {
           <article className="contenido-modal" style={{ maxWidth: '650px' }} onClick={(e) => e.stopPropagation()}>
             <header className="encabezado-modal">
               <h2 className="titulo-modal">
-                {pasoFormulario === 'EDITANDO' 
+                {pasoFormulario === 'EDITANDO'
                   ? (modoModal === 'CREAR' ? 'Registrar Nueva Reserva' : `Editar Reserva N° ${formDataReserva.codigo_reserva}`)
                   : 'Verificar Desglose y Costos de Reserva'
                 }
@@ -594,7 +606,7 @@ export default function Reservas() {
               <section className="formulario-huesped">
                 <section style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                   <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', marginBottom: '1rem' }}>Resumen de la Estancia</h3>
-                  
+
                   <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem' }}>
                     <strong>Huésped:</strong> {huespedSeleccionadoObj?.nombre || 'N/A'}
                   </p>
@@ -611,7 +623,7 @@ export default function Reservas() {
                   <hr style={{ border: '0', borderTop: '1px solid #cbd5e1', margin: '0.75rem 0' }} />
 
                   <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.75rem' }}>Desglose Financiero</h3>
-                  
+
                   <section style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#64748b' }}>
                     <span>Tarifa base ({finanzasForm.noches} x {formatUSD(finanzasForm.precioBaseNoche)}):</span>
                     <strong>{formatUSD(finanzasForm.subtotalTarifaBase)}</strong>

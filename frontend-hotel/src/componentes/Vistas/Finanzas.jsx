@@ -227,12 +227,20 @@ export default function Finanzas({ usuario }) {
         const esCrear = modoRecargo === 'CREAR';
         const url = esCrear ? API_RECARGOS_URL : `${API_RECARGOS_URL}/${formDataRecargo.id_recargo}`;
         const metodo = esCrear ? 'POST' : 'PUT';
+        const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+        const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
 
         try {
+
+            const payload = {
+                ...formDataRecargo,
+                id_usuario: idUsuarioActual 
+            };
+
             const respuesta = await fetch(url, {
                 method: metodo,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formDataRecargo)
+                body: JSON.stringify(payload)
             });
 
             if (!respuesta.ok) {
@@ -272,8 +280,15 @@ export default function Finanzas({ usuario }) {
     };
 
     const ejecutarEliminacionRecargo = async (id) => {
+        // 👇 OBTENER SESIÓN ACTIVA
+        const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+        const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
         try {
-            const respuesta = await fetch(`${API_RECARGOS_URL}/${id}`, { method: 'DELETE' });
+            const respuesta = await fetch(`${API_RECARGOS_URL}/${id}?id_usuario=${idUsuarioActual}`, { 
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            });
             if (!respuesta.ok) throw new Error('No se pudo eliminar el recargo.');
             cargarRecargos();
             setAlerta({
@@ -339,9 +354,13 @@ export default function Finanzas({ usuario }) {
 
         setGuardandoPago(true);
 
+        // 👇 OBTENER SESIÓN ACTIVA
+        const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+        const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
         const payload = {
             ...formDataPago,
-            id_usuario: usuario?.id_usuario || 1,
+            id_usuario: idUsuarioActual, // <-- Enviamos el usuario responsable real en lugar de prop fija
             tasa_bcv: bcvRate
         };
 

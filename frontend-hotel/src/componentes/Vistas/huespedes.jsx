@@ -100,6 +100,7 @@ export default function Huespedes() {
   };
 
   const abrirModalEditar = (huesped) => {
+
     setFormData({
       id_huesped: huesped.id_huesped,
       nombre: huesped.nombre || '',
@@ -115,17 +116,17 @@ export default function Huespedes() {
   };
 
   const cerrarModalForm = () => {
+
     if (guardando) return;
     setModalFormAbierto(false);
     setFormData(estadoInicialForm);
     setErroresForm({});
   };
 
-  // --- SUBMIT (CREAR Y EDITAR) ---
   const handleSubmit = async (e) => {
+
     e.preventDefault();
 
-    // Validar todos los campos antes de enviar
     const erroresTemp = {};
     Object.keys(formData).forEach((key) => {
       const err = validarCampo(key, formData[key]);
@@ -142,11 +143,19 @@ export default function Huespedes() {
     const url = esCrear ? API_URL : `${API_URL}/${formData.id_huesped}`;
     const metodo = esCrear ? 'POST' : 'PUT';
 
+    const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+    const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
     try {
+      const payload = {
+        ...formData,
+        id_usuario: idUsuarioActual
+      };
+
       const respuesta = await fetch(url, {
         method: metodo,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (!respuesta.ok) {
@@ -167,7 +176,7 @@ export default function Huespedes() {
         abierto: true,
         tipo: 'exito',
         titulo: esCrear ? '¡Huésped Registrado!' : '¡Datos Actualizados!',
-        mensaje: esCrear 
+        mensaje: esCrear
           ? 'Los datos del huésped fueron guardados correctamente en la base de datos.'
           : 'La información del huésped ha sido actualizada exitosamente.'
       });
@@ -198,8 +207,15 @@ export default function Huespedes() {
   };
 
   const ejecutarEliminacion = async (id) => {
+    // 👇 OBTENER SESIÓN ACTIVA
+    const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+    const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
     try {
-      const respuesta = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      const respuesta = await fetch(`${API_URL}/${id}?id_usuario=${idUsuarioActual}`, { 
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
       if (!respuesta.ok) throw new Error('No se pudo eliminar el registro seleccionado.');
 
       cargarHuespedes();
@@ -475,7 +491,7 @@ export default function Huespedes() {
       {alerta.abierto && (
         <aside className="overlay-modal z-alto">
           <article className="modal-alerta-tarjeta">
-            
+
             {/* Ícono dinámico */}
             <header className={`icono-alerta-circulo ${alerta.tipo}`}>
               {alerta.tipo === 'exito' && (
@@ -485,16 +501,16 @@ export default function Huespedes() {
               )}
               {alerta.tipo === 'error' && (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                  <line x1="12" y1="9" x2="12" y2="13"/>
-                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
               )}
               {alerta.tipo === 'confirmar' && (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="12" y1="8" x2="12" y2="12"/>
-                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
               )}
             </header>

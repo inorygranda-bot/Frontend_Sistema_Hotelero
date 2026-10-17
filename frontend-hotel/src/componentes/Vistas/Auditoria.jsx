@@ -2,19 +2,16 @@ import React, { useState, useEffect } from 'react';
 import '../../estilos/huespedes.css';
 import '../../estilos/auditoria.css';
 
-const API_AUDITORIA_URL = 'http://localhost:3000/api/auditoria';
+const API_AUDITORIA_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/auditoria';
 
 export default function Auditoria() {
   const [registrosAuditoria, setRegistrosAuditoria] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [errorTabla, setErrorTabla] = useState(null);
-  
-  // Estados de filtrado avanzado para la trazabilidad completa
+
   const [busqueda, setBusqueda] = useState('');
   const [filtroModulo, setFiltroModulo] = useState('TODOS');
-  const [filtroAccion, setFiltroAccion] = useState('TODAS');
 
-  // Estado para el modal de detalle del registro seleccionado
   const [modalDetalleAbierto, setModalDetalleAbierto] = useState(false);
   const [registroSeleccionado, setRegistroSeleccionado] = useState(null);
 
@@ -27,10 +24,12 @@ export default function Auditoria() {
         throw new Error('No se pudo obtener el registro de auditoría del servidor.');
       }
       const datos = await respuesta.json();
-      setRegistrosAuditoria(Array.isArray(datos) ? datos : []);
+      if (Array.isArray(datos)) {
+        setRegistrosAuditoria(datos);
+      }
     } catch (err) {
+      console.error("Error al refrescar auditoría:", err);
       setErrorTabla(err.message || 'Error al conectar con la base de datos de auditoría.');
-      setRegistrosAuditoria([]);
     } finally {
       setCargando(false);
     }
@@ -50,7 +49,6 @@ export default function Auditoria() {
     setRegistroSeleccionado(null);
   };
 
-  // Filtrado reactivo de acciones por usuario, módulo o descripción
   const registrosFiltrados = registrosAuditoria.filter((reg) => {
     const texto = busqueda.toLowerCase().trim();
     const coincideTexto =
@@ -59,18 +57,9 @@ export default function Auditoria() {
       reg.descripcion?.toLowerCase().includes(texto);
 
     const coincideModulo = filtroModulo === 'TODOS' || reg.modulo?.toUpperCase() === filtroModulo.toUpperCase();
-    const coincideAccion = filtroAccion === 'TODAS' || reg.tipo_accion?.toUpperCase() === filtroAccion.toUpperCase();
 
-    return coincideTexto && coincideModulo && coincideAccion;
+    return coincideTexto && coincideModulo;
   });
-
-  const totalRegistros = registrosAuditoria.length;
-  const accionesHoy = registrosAuditoria.filter((reg) => {
-    if (!reg.fecha_accion) return false;
-    const fechaReg = new Date(reg.fecha_accion).toISOString().slice(0, 10);
-    const hoyISO = new Date().toISOString().slice(0, 10);
-    return fechaReg === hoyISO;
-  }).length;
 
   return (
     <section className="contenedor-huespedes contenedor-auditoria">
@@ -79,17 +68,31 @@ export default function Auditoria() {
         <p className="subtitulo-vista">Registro detallado de todas las acciones, cambios y accesos de los usuarios</p>
       </header>
 
-      {/* MÉTRICAS RÁPIDAS DE AUDITORÍA */}
+      {/* MÉTRICAS RÁPIDAS CON CÁLCULO DIRECTO INLINE */}
       <section className="tarjeta-resumen-auditoria">
         <article className="item-metrica-auditoria">
           <span className="etiqueta-metrica-auditoria">Total de Acciones Registradas</span>
-          <strong className="valor-metrica-auditoria">{totalRegistros}</strong>
+          <strong className="valor-metrica-auditoria">{registrosAuditoria.length}</strong>
           <small className="texto-secundario">Historial general en base de datos</small>
         </article>
 
         <article className="item-metrica-auditoria">
           <span className="etiqueta-metrica-auditoria">Actividad del Día (Hoy)</span>
-          <strong className="valor-metrica-auditoria valor-hoy">{accionesHoy}</strong>
+          <strong className="valor-metrica-auditoria valor-hoy">
+            {
+              registrosAuditoria.filter((reg) => {
+                if (!reg.fecha_accion) return false;
+                const d = new Date(reg.fecha_accion);
+                if (isNaN(d.getTime())) return false;
+                const hoy = new Date();
+                return (
+                  d.getFullYear() === hoy.getFullYear() &&
+                  d.getMonth() === hoy.getMonth() &&
+                  d.getDate() === hoy.getDate()
+                );
+              }).length
+            }
+          </strong>
           <small className="texto-secundario">Acciones procesadas hoy</small>
         </article>
 
@@ -130,22 +133,7 @@ export default function Auditoria() {
               <option value="Finanzas">Finanzas</option>
               <option value="Tarifas">Tarifas</option>
               <option value="Usuarios">Usuarios y Roles</option>
-              <option value="Emergencia">Control de Emergencia</option>
-            </select>
-          </label>
-
-          <label className="caja-filtro">
-            <select
-              className="select-filtro"
-              value={filtroAccion}
-              onChange={(e) => setFiltroAccion(e.target.value)}
-            >
-              <option value="TODAS">Acción: Todas</option>
-              <option value="CREAR">Crear</option>
-              <option value="ACTUALIZAR">Actualizar</option>
-              <option value="ELIMINAR">Eliminar</option>
-              <option value="ACCESO">Acceso / Login</option>
-              <option value="ALERTA">Alerta de Seguridad</option>
+              <option value="Control de emergencia">Control de Emergencia</option>
             </select>
           </label>
         </section>
@@ -174,7 +162,6 @@ export default function Auditoria() {
                 <th>Fecha y Hora</th>
                 <th>Usuario Responsable</th>
                 <th>Módulo Afectado</th>
-                <th>Tipo de Acción</th>
                 <th>Descripción Detallada</th>
                 <th className="texto-derecha">Detalles</th>
               </tr>
@@ -198,11 +185,6 @@ export default function Auditoria() {
                       <span className="badge-modulo">{reg.modulo || 'General'}</span>
                     </td>
                     <td>
-                      <span className={`badge-accion ${(reg.tipo_accion || 'general').toLowerCase()}`}>
-                        {reg.tipo_accion || 'ACCION'}
-                      </span>
-                    </td>
-                    <td>
                       <p className="descripcion-recortada" title={reg.descripcion}>
                         {reg.descripcion || 'Sin descripción adicional'}
                       </p>
@@ -220,7 +202,7 @@ export default function Auditoria() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="tabla-vacia">
+                  <td colSpan="5" className="tabla-vacia">
                     No se encontraron registros de auditoría con los filtros seleccionados.
                   </td>
                 </tr>
@@ -251,15 +233,11 @@ export default function Auditoria() {
                     <strong className="valor-mini">{new Date(registroSeleccionado.fecha_accion).toLocaleString('es-VE')}</strong>
                   </article>
                   <article className="item-info-mini">
-                    <span className="label-mini">Acción Ejecutada</span>
-                    <strong className="valor-mini">{registroSeleccionado.tipo_accion}</strong>
-                  </article>
-                  <article className="item-info-mini">
                     <span className="label-mini">Usuario Responsable</span>
                     <strong className="valor-mini">{registroSeleccionado.nombre_usuario}</strong>
                   </article>
                 </section>
-                
+
                 <article className="box-amenidades caja-espaciada">
                   <span className="label-mini">Descripción Completa del Cambio</span>
                   <p className="texto-amenidades texto-espaciado">
@@ -271,8 +249,8 @@ export default function Auditoria() {
                   <article className="box-amenidades caja-espaciada">
                     <span className="label-mini">Datos Anteriores (Estado previo)</span>
                     <pre className="bloque-codigo">
-                      {typeof registroSeleccionado.datos_anteriores === 'string' 
-                        ? registroSeleccionado.datos_anteriores 
+                      {typeof registroSeleccionado.datos_anteriores === 'string'
+                        ? registroSeleccionado.datos_anteriores
                         : JSON.stringify(registroSeleccionado.datos_anteriores, null, 2)}
                     </pre>
                   </article>
@@ -282,8 +260,8 @@ export default function Auditoria() {
                   <article className="box-amenidades caja-espaciada">
                     <span className="label-mini">Datos Nuevos (Estado posterior)</span>
                     <pre className="bloque-codigo">
-                      {typeof registroSeleccionado.datos_nuevos === 'string' 
-                        ? registroSeleccionado.datos_nuevos 
+                      {typeof registroSeleccionado.datos_nuevos === 'string'
+                        ? registroSeleccionado.datos_nuevos
                         : JSON.stringify(registroSeleccionado.datos_nuevos, null, 2)}
                     </pre>
                   </article>

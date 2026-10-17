@@ -5,7 +5,7 @@ const API_HABITACIONES_URL = 'http://localhost:3000/api/habitaciones';
 const API_TIPOS_URL = 'http://localhost:3000/api/tipos-habitacion';
 
 export default function Habitaciones() {
-  const [pestannaActiva, setPestannaActiva] = useState('HABITACIONES'); // 'HABITACIONES' o 'TIPOS'
+  const [pestannaActiva, setPestannaActiva] = useState('HABITACIONES');
   const [habitaciones, setHabitaciones] = useState([]);
   const [tiposHabitacion, setTiposHabitacion] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +32,7 @@ export default function Habitaciones() {
 
   // Estados del modal de formulario de Tipos de Habitación (Crear / Editar)
   const [modalTipoAbierto, setModalTipoAbierto] = useState(false);
-  const [modoTipoModal, setModoTipoModal] = useState('CREAR'); // 'CREAR' o 'EDITAR'
+  const [modoTipoModal, setModoTipoModal] = useState('CREAR');
   const [tipoSeleccionadoId, setTipoSeleccionadoId] = useState(null);
   const [guardandoTipo, setGuardandoTipo] = useState(false);
   const [erroresTipoForm, setErroresTipoForm] = useState({});
@@ -56,11 +56,31 @@ export default function Habitaciones() {
     textoConfirmar: 'Aceptar'
   });
 
+  // Función helper para obtener el ID de usuario de forma 100% segura
+  const obtenerIdUsuarioActual = () => {
+    try {
+      // Buscamos primero en 'sesion_activa' que es como guardas la sesión actual
+      const sesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+      
+      // Verificamos si el id_usuario existe directamente
+      if (sesion.id_usuario) {
+        return Number(sesion.id_usuario);
+      }
+      // Si está anidado
+      if (sesion.usuario && sesion.usuario.id_usuario) {
+        return Number(sesion.usuario.id_usuario);
+      }
+    } catch (e) {
+      console.error("Error leyendo localStorage:", e);
+    }
+    
+    return 1;
+  };
+
   const cargarDatos = async () => {
     setLoading(true);
     setErrorTabla(null);
 
-    // 1. Cargar Habitaciones de forma independiente
     try {
       const respHabitaciones = await fetch(API_HABITACIONES_URL);
       if (respHabitaciones.ok) {
@@ -74,7 +94,6 @@ export default function Habitaciones() {
       setHabitaciones([]);
     }
 
-    // 2. Cargar Tipos de Habitación de forma independiente
     try {
       const respTipos = await fetch(API_TIPOS_URL);
       if (respTipos.ok) {
@@ -95,7 +114,6 @@ export default function Habitaciones() {
     cargarDatos();
   }, []);
 
-  // --- VALIDACIONES HABITACIÓN ---
   const validarCampoHabitacion = (nombre, valor) => {
     let error = '';
     if (nombre === 'codigo_habitacion') {
@@ -119,7 +137,6 @@ export default function Habitaciones() {
     setErroresForm((prev) => ({ ...prev, [name]: errorMensaje }));
   };
 
-  // --- VALIDACIONES TIPO DE HABITACIÓN ---
   const validarCampoTipo = (nombre, valor) => {
     let error = '';
     if (nombre === 'nombre_tipo' && !valor.trim()) error = 'El nombre es obligatorio.';
@@ -134,7 +151,6 @@ export default function Habitaciones() {
     setErroresTipoForm((prev) => ({ ...prev, [name]: errorMensaje }));
   };
 
-  // --- ACCIONES Y MODALES HABITACIONES ---
   const abrirModalCrearHabitacion = () => {
     setFormDataHabitacion(estadoInicialFormHabitacion);
     setErroresForm({});
@@ -177,9 +193,12 @@ export default function Habitaciones() {
   };
 
   const eliminarHabitacion = async (codigoHabitacion) => {
+    const idUsuarioActual = obtenerIdUsuarioActual();
+
     try {
-      const respuesta = await fetch(`${API_HABITACIONES_URL}/${codigoHabitacion}`, {
+      const respuesta = await fetch(`${API_HABITACIONES_URL}/${codigoHabitacion}?id_usuario=${idUsuarioActual}`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
       });
 
       const data = await respuesta.json();
@@ -229,12 +248,16 @@ export default function Habitaciones() {
     const esCrear = modoModal === 'CREAR';
     const url = esCrear ? API_HABITACIONES_URL : `${API_HABITACIONES_URL}/${formDataHabitacion.codigo_habitacion}`;
     const metodo = esCrear ? 'POST' : 'PUT';
+    const idUsuarioActual = obtenerIdUsuarioActual();
 
     try {
       const respuesta = await fetch(url, {
         method: metodo,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formDataHabitacion)
+        body: JSON.stringify({
+          ...formDataHabitacion,
+          id_usuario: idUsuarioActual
+        })
       });
 
       if (!respuesta.ok) {
@@ -262,7 +285,6 @@ export default function Habitaciones() {
     }
   };
 
-  // --- ACCIONES Y MODALES TIPOS DE HABITACIÓN ---
   const abrirModalCrearTipo = () => {
     setFormDataTipo(estadoInicialFormTipo);
     setErroresTipoForm({});
@@ -306,12 +328,16 @@ export default function Habitaciones() {
     const esCrear = modoTipoModal === 'CREAR';
     const url = esCrear ? API_TIPOS_URL : `${API_TIPOS_URL}/${tipoSeleccionadoId}`;
     const metodo = esCrear ? 'POST' : 'PUT';
+    const idUsuarioActual = obtenerIdUsuarioActual();
 
     try {
       const respuesta = await fetch(url, {
         method: metodo,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formDataTipo)
+        body: JSON.stringify({
+          ...formDataTipo,
+          id_usuario: idUsuarioActual
+        })
       });
 
       if (!respuesta.ok) {
@@ -351,9 +377,12 @@ export default function Habitaciones() {
   };
 
   const eliminarTipo = async (idTipo) => {
+    const idUsuarioActual = obtenerIdUsuarioActual();
+
     try {
-      const respuesta = await fetch(`${API_TIPOS_URL}/${idTipo}`, {
+      const respuesta = await fetch(`${API_TIPOS_URL}/${idTipo}?id_usuario=${idUsuarioActual}`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
       });
 
       const data = await respuesta.json();
@@ -379,7 +408,6 @@ export default function Habitaciones() {
     }
   };
 
-  // --- FILTRADO ---
   const habitacionesFiltradas = habitaciones.filter((h) => {
     const coincideBusqueda = h.codigo_habitacion?.toString().includes(busqueda.trim());
     const coincideEstado =
@@ -405,11 +433,17 @@ export default function Habitaciones() {
 
   const ejecutarAccion = async (endpoint, body = {}) => {
     if (!habitacionSeleccionada) return;
+
+    const idUsuarioActual = obtenerIdUsuarioActual();
+
     try {
       const respuesta = await fetch(`${API_HABITACIONES_URL}/${habitacionSeleccionada.codigo_habitacion}/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify({
+          ...body,
+          id_usuario: idUsuarioActual
+        })
       });
 
       if (!respuesta.ok) {
@@ -442,7 +476,6 @@ export default function Habitaciones() {
         <p className="subtitulo-vista">Control de estado, tipologías y ocupación hotelera</p>
       </header>
 
-      {/* PESTAÑAS DE NAVEGACIÓN VISTA */}
       <nav className="pestañas-navegacion">
         <button
           type="button"
@@ -460,7 +493,6 @@ export default function Habitaciones() {
         </button>
       </nav>
 
-      {/* BARRA DE HERRAMIENTAS */}
       <section className="barra-herramientas">
         <section className="grupo-controles">
           <label className="caja-busqueda">
@@ -504,7 +536,6 @@ export default function Habitaciones() {
         </section>
       </section>
 
-      {/* CONTENIDO PRINCIPAL SEGÚN PESTAÑA */}
       {loading ? (
         <article className="caja-cargando">
           <span className="spinner"></span>
@@ -518,7 +549,6 @@ export default function Habitaciones() {
           </button>
         </aside>
       ) : pestannaActiva === 'HABITACIONES' ? (
-        /* VISTA DE HABITACIONES */
         <section className="grid-habitaciones">
           {habitacionesFiltradas.length > 0 ? (
             habitacionesFiltradas.map((h) => (
@@ -575,7 +605,6 @@ export default function Habitaciones() {
           )}
         </section>
       ) : (
-        /* VISTA TABLA DE TIPOS DE HABITACIÓN */
         <article className="tarjeta-tabla">
           <table className="tabla-huespedes">
             <thead>
@@ -629,7 +658,6 @@ export default function Habitaciones() {
         </article>
       )}
 
-      {/* MODAL FORMULARIO HABITACIÓN */}
       {modalFormAbierto && (
         <aside className="overlay-modal" onClick={cerrarModalFormHabitacion}>
           <article className="contenido-modal" onClick={(e) => e.stopPropagation()}>
@@ -742,7 +770,6 @@ export default function Habitaciones() {
         </aside>
       )}
 
-      {/* MODAL FORMULARIO TIPO DE HABITACIÓN (CREAR / EDITAR) */}
       {modalTipoAbierto && (
         <aside className="overlay-modal" onClick={cerrarModalTipo}>
           <article className="contenido-modal" onClick={(e) => e.stopPropagation()}>
@@ -805,7 +832,6 @@ export default function Habitaciones() {
         </aside>
       )}
 
-      {/* MODAL DETALLE DE HABITACIÓN (COMPACTO Y LIMPIO) */}
       {modalDetalleAbierto && habitacionSeleccionada && (
         <aside className="overlay-modal" onClick={cerrarDetalle}>
           <article className="contenido-modal modal-detalle" onClick={(e) => e.stopPropagation()}>
@@ -825,7 +851,6 @@ export default function Habitaciones() {
             </header>
 
             <section className="cuerpo-modal-detalle">
-              {/* INFORMACIÓN GENERAL */}
               <section className="seccion-bloque-detalle">
                 <h3 className="titulo-seccion-detalle">Información General</h3>
                 <section className="grid-info-tarjetas">
@@ -844,7 +869,6 @@ export default function Habitaciones() {
                 </article>
               </section>
 
-              {/* ESTADO ACTUAL */}
               <section className="seccion-bloque-detalle">
                 <h3 className="titulo-seccion-detalle">Estado Actual</h3>
 
@@ -948,7 +972,6 @@ export default function Habitaciones() {
         </aside>
       )}
 
-      {/* MODAL DE ALERTAS Y CONFIRMACIÓN */}
       {alerta.abierto && (
         <aside className="overlay-modal z-alto">
           <article className="modal-alerta-tarjeta">

@@ -105,10 +105,31 @@ export default function ControlEmergencia({ usuario }) {
     }
   };
 
-  const toggleMarcarSeguro = (idHuesped) => {
+  // ✅ Registrar en auditoría al marcar o desmarcar a un huésped como seguro
+  const toggleMarcarSeguro = async (idHuesped) => {
+    const huespedActual = huespedesActivos.find(h => h.id_huesped === idHuesped);
+    if (!huespedActual) return;
+
+    const nuevoEstadoSeguro = !huespedActual.seguro;
+
+    // Actualizar estado local inmediato
     setHuespedesActivos(prev =>
-      prev.map(h => h.id_huesped === idHuesped ? { ...h, seguro: !h.seguro } : h)
+      prev.map(h => h.id_huesped === idHuesped ? { ...h, seguro: nuevoEstadoSeguro } : h)
     );
+
+    try {
+      await fetch('http://localhost:3000/api/emergencia/marcar-seguro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_usuario: usuario?.id_usuario || 1,
+          id_huesped: idHuesped,
+          seguro: nuevoEstadoSeguro
+        })
+      });
+    } catch (err) {
+      console.error('Error al registrar marcaje de seguridad en auditoría:', err);
+    }
   };
 
   const enviarMensajeMasivo = async () => {
@@ -117,7 +138,10 @@ export default function ControlEmergencia({ usuario }) {
       const respuesta = await fetch('http://localhost:3000/api/emergencia/mensaje-masivo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mensaje: mensajeAlerta })
+        body: JSON.stringify({
+          mensaje: mensajeAlerta,
+          id_usuario: usuario?.id_usuario || 1
+        })
       });
 
       const datos = await respuesta.json();

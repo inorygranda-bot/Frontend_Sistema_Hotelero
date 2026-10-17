@@ -311,11 +311,15 @@ export default function Tarifas() {
       return;
     }
 
+    const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+    const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
     try {
       setGuardando(true);
       const payload = {
         ...formData,
-        estado: esBorrador ? 'Borrador' : formData.estado || 'Activa'
+        estado: esBorrador ? 'Borrador' : formData.estado || 'Activa',
+        id_usuario: idUsuarioActual
       };
 
       const url = modoModal === 'CREAR' ? API_BASE : `${API_BASE}/${editId}`;
@@ -354,9 +358,18 @@ export default function Tarifas() {
 
   // Eliminar tarifa
   const confirmarEliminar = async () => {
+
     if (!tarifaAEliminar) return;
+
+    const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+    const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
     try {
-      const res = await fetch(`${API_BASE}/${tarifaAEliminar.id_tarifa}`, { method: 'DELETE' });
+      
+      const res = await fetch(`${API_BASE}/${tarifaAEliminar.id_tarifa}?id_usuario=${idUsuarioActual}`, { 
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.mensaje || 'No se pudo eliminar');
       setModalEliminarAbierto(false);
