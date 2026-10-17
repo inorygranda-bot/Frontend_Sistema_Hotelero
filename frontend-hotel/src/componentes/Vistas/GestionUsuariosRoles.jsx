@@ -132,41 +132,51 @@ export default function GestionUsuariosRoles() {
     };
 
     const handleSubmitRol = async (e) => {
-    e.preventDefault();
-    if (!validarRol()) return;
+        e.preventDefault();
+        if (!validarRol()) return;
 
-    try {
-      const url = modoModalRol === 'CREAR' ? API_ROLES : `${API_ROLES}/${formDataRol.id_rol}`;
-      const metodo = modoModalRol === 'CREAR' ? 'POST' : 'PUT';
+        const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+        const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
 
-      const respuesta = await fetch(url, {
-        method: metodo,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formDataRol)
-      });
+        try {
+            const url = modoModalRol === 'CREAR' ? API_ROLES : `${API_ROLES}/${formDataRol.id_rol}`;
+            const metodo = modoModalRol === 'CREAR' ? 'POST' : 'PUT';
 
-      // Leemos la respuesta del servidor en formato JSON
-      const datosRespuesta = await respuesta.json().catch(() => ({}));
+            const payload = {
+                ...formDataRol,
+                id_usuario: idUsuarioActual
+            };
 
-      if (!respuesta.ok) {
-        // Lanzamos el mensaje real que viene del controlador (ej. rol duplicado)
-        throw new Error(datosRespuesta.mensaje || 'Error al guardar el rol.');
-      }
+            const respuesta = await fetch(url, {
+                method: metodo,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
 
-      setModalRolAbierto(false);
-      cargarDatos();
-      window.dispatchEvent(new Event('sesion_actualizada'));
-      setAlerta({
-        abierto: true,
-        tipo: 'exito',
-        titulo: modoModalRol === 'CREAR' ? '¡Rol Registrado!' : '¡Rol Actualizado!',
-        mensaje: 'La operación y sus permisos se guardaron correctamente.'
-      });
-    } catch (err) {
-      setAlerta({ abierto: true, tipo: 'error', titulo: 'Atención', mensaje: err.message });
-    }
-  };
+            const datosRespuesta = await respuesta.json().catch(() => ({}));
+            if (!respuesta.ok) {
+                throw new Error(datosRespuesta.mensaje || 'Error al guardar el rol.');
+            }
+
+            setModalRolAbierto(false);
+            cargarDatos();
+            window.dispatchEvent(new Event('sesion_actualizada'));
+            setAlerta({
+                abierto: true,
+                tipo: 'exito',
+                titulo: modoModalRol === 'CREAR' ? '¡Rol Registrado!' : '¡Rol Actualizado!',
+                mensaje: 'La operación y sus permisos se guardaron correctamente.'
+            });
+        } catch (err) {
+            setAlerta({ abierto: true, tipo: 'error', titulo: 'Atención', mensaje: err.message });
+        }
+    };
+
     const confirmarEliminarRol = (id, nombre) => {
+        
+        const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+        const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
         setAlerta({
             abierto: true,
             tipo: 'confirmar',
@@ -174,7 +184,10 @@ export default function GestionUsuariosRoles() {
             mensaje: `¿Está seguro de eliminar el rol "${nombre}"?`,
             accion: async () => {
                 try {
-                    const resp = await fetch(`${API_ROLES}/${id}`, { method: 'DELETE' });
+                    const resp = await fetch(`${API_ROLES}/${id}?id_usuario=${idUsuarioActual}`, { 
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
                     if (!resp.ok) throw new Error('No se pudo eliminar el rol.');
                     cargarDatos();
                     setAlerta({ abierto: true, tipo: 'exito', titulo: '¡Rol Eliminado!', mensaje: 'El registro fue removido.' });
@@ -220,14 +233,23 @@ export default function GestionUsuariosRoles() {
         e.preventDefault();
         if (!validarUsuario()) return;
 
+        const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+        const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
         try {
+            
             const url = modoModalUsuario === 'CREAR' ? API_USUARIOS : `${API_USUARIOS}/${formDataUsuario.id_usuario}`;
             const metodo = modoModalUsuario === 'CREAR' ? 'POST' : 'PUT';
+
+            const payload = {
+                ...formDataUsuario,
+                id_usuario_responsable: idUsuarioActual 
+            };
 
             const respuesta = await fetch(url, {
                 method: metodo,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formDataUsuario)
+                body: JSON.stringify(payload)
             });
 
             if (!respuesta.ok) {
@@ -250,6 +272,10 @@ export default function GestionUsuariosRoles() {
     };
 
     const confirmarEliminarUsuario = (id, nombre) => {
+        // 👇 OBTENER SESIÓN ACTIVA
+        const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+        const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
         setAlerta({
             abierto: true,
             tipo: 'confirmar',
@@ -257,7 +283,10 @@ export default function GestionUsuariosRoles() {
             mensaje: `¿Está seguro de eliminar al usuario "${nombre}"?`,
             accion: async () => {
                 try {
-                    const resp = await fetch(`${API_USUARIOS}/${id}`, { method: 'DELETE' });
+                    const resp = await fetch(`${API_USUARIOS}/${id}?id_usuario=${idUsuarioActual}`, { 
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
                     if (!resp.ok) throw new Error('No se pudo eliminar el usuario.');
                     cargarDatos();
                     setAlerta({ abierto: true, tipo: 'exito', titulo: '¡Usuario Eliminado!', mensaje: 'El registro fue removido.' });

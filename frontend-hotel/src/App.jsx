@@ -10,6 +10,7 @@ import Finanzas from './componentes/Vistas/Finanzas';
 import GestionUsuariosRoles from './componentes/Vistas/GestionUsuariosRoles';
 import Reservas from './componentes/Vistas/Reservas';
 import ControlEmergencia from './componentes/Vistas/ControlEmergencia';
+import Auditoria from './componentes/Vistas/Auditoria';
 import './App.css';
 
 export default function App() {
@@ -131,6 +132,7 @@ export default function App() {
           {vistaActual === 'reservas' && <Reservas />}
           {vistaActual === 'inicio' && <Inicio usuario={sesionActiva} setVistaActual={setVistaActual} />}
           {vistaActual === 'emergencia' && <ControlEmergencia usuario={sesionActiva} />}
+          {vistaActual === 'auditoria' && <Auditoria />}
         </article>
       </section>
     </main>
