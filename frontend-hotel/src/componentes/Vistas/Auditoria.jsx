@@ -11,6 +11,11 @@ export default function Auditoria() {
 
   const [busqueda, setBusqueda] = useState('');
   const [filtroModulo, setFiltroModulo] = useState('TODOS');
+  const [filtroUsuario, setFiltroUsuario] = useState('TODOS');
+
+  // Estados para filtro por fecha / rango de fechas
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
 
   const [modalDetalleAbierto, setModalDetalleAbierto] = useState(false);
   const [registroSeleccionado, setRegistroSeleccionado] = useState(null);
@@ -49,16 +54,50 @@ export default function Auditoria() {
     setRegistroSeleccionado(null);
   };
 
+  const limpiarFiltros = () => {
+    setBusqueda('');
+    setFiltroModulo('TODOS');
+    setFiltroUsuario('TODOS');
+    setFechaInicio('');
+    setFechaFin('');
+  };
+
+  // Obtener lista única de usuarios para el selector desplegable
+  const listaUsuariosUnicos = Array.from(
+    new Set(registrosAuditoria.map(reg => reg.nombre_usuario).filter(Boolean))
+  ).sort();
+
   const registrosFiltrados = registrosAuditoria.filter((reg) => {
+    // 1. Filtro por texto de búsqueda general
     const texto = busqueda.toLowerCase().trim();
     const coincideTexto =
       reg.nombre_usuario?.toLowerCase().includes(texto) ||
       reg.correo_usuario?.toLowerCase().includes(texto) ||
       reg.descripcion?.toLowerCase().includes(texto);
 
+    // 2. Filtro por módulo
     const coincideModulo = filtroModulo === 'TODOS' || reg.modulo?.toUpperCase() === filtroModulo.toUpperCase();
 
-    return coincideTexto && coincideModulo;
+    // 3. Filtro por usuario específico
+    const coincideUsuario = filtroUsuario === 'TODOS' || reg.nombre_usuario === filtroUsuario;
+
+    // 4. Filtro por rango de fechas / fecha específica
+    let coincideFecha = true;
+    if (reg.fecha_accion) {
+      const fechaReg = new Date(reg.fecha_accion);
+
+      if (fechaInicio) {
+        const inicio = new Date(`${fechaInicio}T00:00:00`);
+        if (fechaReg < inicio) coincideFecha = false;
+      }
+
+      if (fechaFin) {
+        const fin = new Date(`${fechaFin}T23:59:59.999`);
+        if (fechaReg > fin) coincideFecha = false;
+      }
+    }
+
+    return coincideTexto && coincideModulo && coincideUsuario && coincideFecha;
   });
 
   return (
@@ -103,10 +142,11 @@ export default function Auditoria() {
         </article>
       </section>
 
-      {/* BARRA DE HERRAMIENTAS Y FILTROS */}
-      <section className="barra-herramientas">
-        <section className="grupo-controles">
-          <label className="caja-busqueda">
+      {/* BARRA DE HERRAMIENTAS Y FILTROS PROFESIONALES */}
+      <section className="barra-herramientas barra-herramientas-auditoria">
+        {/* Fila 1: Búsqueda, Módulo y Usuario */}
+        <section className="grupo-controles grupo-controles-auditoria">
+          <label className="caja-busqueda caja-busqueda-auditoria">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" x2="16.65" y1="21" y2="16.65" />
@@ -114,13 +154,13 @@ export default function Auditoria() {
             <input
               type="search"
               className="input-busqueda"
-              placeholder="Buscar por usuario, correo o descripción..."
+              placeholder="Buscar en descripciones o correos..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
             />
           </label>
 
-          <label className="caja-filtro">
+          <div className="contenedor-select-auditoria">
             <select
               className="select-filtro"
               value={filtroModulo}
@@ -135,12 +175,64 @@ export default function Auditoria() {
               <option value="Usuarios">Usuarios y Roles</option>
               <option value="Control de emergencia">Control de Emergencia</option>
             </select>
-          </label>
+          </div>
+
+          <div className="contenedor-select-auditoria">
+            <select
+              className="select-filtro"
+              value={filtroUsuario}
+              onChange={(e) => setFiltroUsuario(e.target.value)}
+            >
+              <option value="TODOS">Usuario: Todos</option>
+              {listaUsuariosUnicos.map((nombreUser) => (
+                <option key={nombreUser} value={nombreUser}>{nombreUser}</option>
+              ))}
+            </select>
+          </div>
         </section>
 
-        <button type="button" className="boton-agregar" onClick={cargarAuditoria}>
-          <span>🔄 Actualizar Registro</span>
-        </button>
+        {/* Fila 2: Fechas y Botones de Acción */}
+        <section className="fila-inferior-auditoria">
+          <div className="contenedor-fechas-auditoria">
+            <span className="etiqueta-rango-fechas">Rango de Fechas:</span>
+            
+            <label className="label-fecha-auditoria">
+              <span>Desde:</span>
+              <input
+                type="date"
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+                className="input-fecha-auditoria"
+              />
+            </label>
+
+            <label className="label-fecha-auditoria">
+              <span>Hasta:</span>
+              <input
+                type="date"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
+                className="input-fecha-auditoria"
+              />
+            </label>
+          </div>
+
+          <div className="contenedor-botones-auditoria">
+            {(busqueda || filtroModulo !== 'TODOS' || filtroUsuario !== 'TODOS' || fechaInicio || fechaFin) && (
+              <button
+                type="button"
+                onClick={limpiarFiltros}
+                className="boton-limpiar-filtros"
+              >
+                Limpiar Filtros
+              </button>
+            )}
+
+            <button type="button" className="boton-agregar boton-actualizar-auditoria" onClick={cargarAuditoria}>
+              <span>Actualizar Registro</span>
+            </button>
+          </div>
+        </section>
       </section>
 
       {/* CONTENIDO DE LA TABLA DE AUDITORÍA */}
@@ -258,7 +350,7 @@ export default function Auditoria() {
 
                 {registroSeleccionado.datos_nuevos && (
                   <article className="box-amenidades caja-espaciada">
-                    <span className="label-mini">Datos Nuevos (Estado posterior)</span>
+                    <span className="label-mini-datos">Datos Nuevos (Estado posterior)</span>
                     <pre className="bloque-codigo">
                       {typeof registroSeleccionado.datos_nuevos === 'string'
                         ? registroSeleccionado.datos_nuevos

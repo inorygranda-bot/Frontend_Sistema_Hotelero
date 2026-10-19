@@ -30,7 +30,6 @@ export default function Habitaciones() {
 
   const [formDataHabitacion, setFormDataHabitacion] = useState(estadoInicialFormHabitacion);
 
-  // Estados del modal de formulario de Tipos de Habitación (Crear / Editar)
   const [modalTipoAbierto, setModalTipoAbierto] = useState(false);
   const [modoTipoModal, setModoTipoModal] = useState('CREAR');
   const [tipoSeleccionadoId, setTipoSeleccionadoId] = useState(null);
@@ -38,7 +37,8 @@ export default function Habitaciones() {
   const [erroresTipoForm, setErroresTipoForm] = useState({});
   const estadoInicialFormTipo = {
     nombre_tipo: '',
-    descripcion: ''
+    descripcion: '',
+    precio_base: '100.00'
   };
   const [formDataTipo, setFormDataTipo] = useState(estadoInicialFormTipo);
 
@@ -721,9 +721,9 @@ export default function Habitaciones() {
 
                 <label className="campo ancho-completo">
                   <span className="label-texto">Estado Operativo</span>
-                  <select 
-                    name="estado" 
-                    value={formDataHabitacion.estado} 
+                  <select
+                    name="estado"
+                    value={formDataHabitacion.estado}
                     onChange={handleChangeHabitacion}
                     disabled={formDataHabitacion.estado === 'Ocupada'}
                   >
@@ -864,8 +864,8 @@ export default function Habitaciones() {
                     <span className="label-mini">Cambiar Estado de Mantenimiento:</span>
                     <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
                       {habitacionSeleccionada.estado !== 'Disponible' && (
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           className="boton-secundario-barra"
                           onClick={() => cambiarEstadoOperativo('Disponible')}
                         >
@@ -873,8 +873,8 @@ export default function Habitaciones() {
                         </button>
                       )}
                       {habitacionSeleccionada.estado !== 'Sucia' && (
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           className="boton-secundario-barra"
                           onClick={() => cambiarEstadoOperativo('Sucia')}
                         >
@@ -882,8 +882,8 @@ export default function Habitaciones() {
                         </button>
                       )}
                       {habitacionSeleccionada.estado !== 'Fuera de servicio' && (
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           className="boton-secundario-barra"
                           onClick={() => cambiarEstadoOperativo('Fuera de servicio')}
                         >
@@ -925,6 +925,86 @@ export default function Habitaciones() {
                 </button>
               </nav>
             </footer>
+          </article>
+        </aside>
+      )}
+
+      {/* MODAL CREAR / EDITAR TIPO DE HABITACIÓN */}
+      {modalTipoAbierto && (
+        <aside className="overlay-modal" onClick={cerrarModalTipo}>
+          <article className="contenido-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="encabezado-modal">
+              <h2 className="titulo-modal">
+                {modoTipoModal === 'CREAR' ? 'Registrar Nuevo Tipo de Habitación' : 'Editar Tipo de Habitación'}
+              </h2>
+              <button type="button" className="boton-cerrar-modal" onClick={cerrarModalTipo}>
+                &times;
+              </button>
+            </header>
+
+            <form onSubmit={handleSubmitTipo} className="formulario-huesped" noValidate>
+              <fieldset className="grupo-campos">
+                <legend className="leyenda-formulario">Información y Tarifa Base</legend>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Nombre del Tipo *</span>
+                  <input
+                    type="text"
+                    name="nombre_tipo"
+                    placeholder="Ej. Suite Presidencial, Matrimonial, Doble"
+                    value={formDataTipo.nombre_tipo}
+                    onChange={handleChangeTipo}
+                    className={erroresTipoForm.nombre_tipo ? 'input-error' : ''}
+                  />
+                </label>
+
+                {modoTipoModal === 'CREAR' && (
+                  <label className="campo ancho-completo">
+                    <span className="label-texto">Precio Base Inicial (USD) *</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="precio_base"
+                      placeholder="Ej. 120.00"
+                      value={formDataTipo.precio_base}
+                      onChange={handleChangeTipo}
+                      className="rate-input"
+                    />
+                    <small className="rate-helper-text" style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '4px', display: 'block' }}>
+                      Se creará automáticamente la tarifa comercial para la "Temporada normal".
+                    </small>
+                  </label>
+                )}
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Descripción / Detalles *</span>
+                  <textarea
+                    name="descripcion"
+                    rows="3"
+                    placeholder="Describe las características generales de este tipo de habitación..."
+                    value={formDataTipo.descripcion}
+                    onChange={handleChangeTipo}
+                    className={erroresTipoForm.descripcion ? 'input-error' : ''}
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', resize: 'vertical' }}
+                  />
+                </label>
+              </fieldset>
+
+              <footer className="acciones-formulario">
+                <button type="button" className="boton-cancelar" onClick={cerrarModalTipo} disabled={guardandoTipo}>
+                  Cancelar
+                </button>
+                <button type="submit" className="boton-guardar" disabled={guardandoTipo}>
+                  {guardandoTipo ? (
+                    <span className="flex-cargando">
+                      <span className="spinner-pequeño"></span> Guardando...
+                    </span>
+                  ) : (
+                    modoTipoModal === 'CREAR' ? 'Guardar Tipo y Tarifa' : 'Actualizar Tipo'
+                  )}
+                </button>
+              </footer>
+            </form>
           </article>
         </aside>
       )}

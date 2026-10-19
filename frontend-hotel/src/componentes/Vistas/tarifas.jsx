@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import XLSX from 'xlsx-js-style';
 import '../../estilos/tarifas.css';
 
-// SVG Icons 100% compatibles con React sin librerías externas
 const IconSvg = ({ children, size = 18, color = 'currentColor', className = '' }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -20,33 +19,34 @@ const IconSvg = ({ children, size = 18, color = 'currentColor', className = '' }
   </svg>
 );
 
-const Layers = (p) => <IconSvg {...p}><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.9a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></IconSvg>;
-const Wallet = (p) => <IconSvg {...p}><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></IconSvg>;
-const TrendingUp = (p) => <IconSvg {...p}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></IconSvg>;
-const BedDouble = (p) => <IconSvg {...p}><path d="M2 20v-8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8"/><path d="M4 10V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4"/><path d="M12 4v6"/><path d="M2 18h20"/></IconSvg>;
-const Search = (p) => <IconSvg {...p}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></IconSvg>;
-const Plus = (p) => <IconSvg {...p}><path d="M5 12h14"/><path d="M12 5v14"/></IconSvg>;
-const Eye = (p) => <IconSvg {...p}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></IconSvg>;
-const Pencil = (p) => <IconSvg {...p}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></IconSvg>;
-const Trash2 = (p) => <IconSvg {...p}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconSvg>;
-const ArrowLeftRight = (p) => <IconSvg {...p}><path d="m9 7-5 5 5 5"/><path d="m15 7 5 5-5 5"/><path d="M4 12h16"/></IconSvg>;
-const X = (p) => <IconSvg {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconSvg>;
-const Check = (p) => <IconSvg {...p}><polyline points="20 6 9 17 4 12"/></IconSvg>;
-const ChevronDown = (p) => <IconSvg {...p}><path d="m6 9 6 6 6-6"/></IconSvg>;
-const DollarSign = (p) => <IconSvg {...p}><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></IconSvg>;
-const RefreshCw = (p) => <IconSvg {...p}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></IconSvg>;
+const Layers = (p) => <IconSvg {...p}><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.9a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></IconSvg>;
+const Wallet = (p) => <IconSvg {...p}><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" /><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" /></IconSvg>;
+const TrendingUp = (p) => <IconSvg {...p}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></IconSvg>;
+const BedDouble = (p) => <IconSvg {...p}><path d="M2 20v-8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8" /><path d="M4 10V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4" /><path d="M12 4v6" /><path d="M2 18h20" /></IconSvg>;
+const Search = (p) => <IconSvg {...p}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></IconSvg>;
+const Plus = (p) => <IconSvg {...p}><path d="M5 12h14" /><path d="M12 5v14" /></IconSvg>;
+const Eye = (p) => <IconSvg {...p}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></IconSvg>;
+const Pencil = (p) => <IconSvg {...p}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></IconSvg>;
+const Trash2 = (p) => <IconSvg {...p}><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></IconSvg>;
+const ArrowLeftRight = (p) => <IconSvg {...p}><path d="m9 7-5 5 5 5" /><path d="m15 7 5 5-5 5" /><path d="M4 12h16" /></IconSvg>;
+const X = (p) => <IconSvg {...p}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></IconSvg>;
+const Check = (p) => <IconSvg {...p}><polyline points="20 6 9 17 4 12" /></IconSvg>;
+const ChevronDown = (p) => <IconSvg {...p}><path d="m6 9 6 6 6-6" /></IconSvg>;
+const DollarSign = (p) => <IconSvg {...p}><line x1="12" x2="12" y1="2" y2="22" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></IconSvg>;
+const RefreshCw = (p) => <IconSvg {...p}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></IconSvg>;
 const FileSpreadsheet = (p) => (
   <IconSvg {...p}>
-    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
-    <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
-    <path d="M8 13h2"/>
-    <path d="M14 13h2"/>
-    <path d="M8 17h2"/>
-    <path d="M14 17h2"/>
+    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+    <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+    <path d="M8 13h2" />
+    <path d="M14 13h2" />
+    <path d="M8 17h2" />
+    <path d="M14 17h2" />
   </IconSvg>
 );
 
 const API_BASE = 'http://localhost:3000/api/tarifas';
+const API_TEMPORADAS_BASE = 'http://localhost:3000/api/temporadas';
 
 export default function Tarifas() {
   const [tarifas, setTarifas] = useState([]);
@@ -87,14 +87,12 @@ export default function Tarifas() {
   };
   const [formData, setFormData] = useState(initialForm);
 
-  // Modal para definir nueva temporada (Fechas Alta / Baja)
   const [modalTemporadaAbierto, setModalTemporadaAbierto] = useState(false);
-  const [formTemporada, setFormTemporada] = useState({
+  const [rangosTemporadaAlta, setRangosTemporadaAlta] = useState([]);
+  const [nuevoRango, setNuevoRango] = useState({
     nombre_temporada: '',
-    dia_inicio: 1,
-    mes_inicio: 1,
-    dia_fin: 31,
-    mes_fin: 12,
+    fecha_inicio: '',
+    fecha_fin: '',
     descripcion: ''
   });
 
@@ -102,12 +100,11 @@ export default function Tarifas() {
   const [tarifaVer, setTarifaVer] = useState(null);
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false);
   const [tarifaAEliminar, setTarifaAEliminar] = useState(null);
-  const [modalLimiteAbierto, setModalLimiteAbierto] = useState(false);
   const [toasts, setToasts] = useState([]);
 
-  const lanzarToast = (mensaje) => {
+  const lanzarToast = (mensaje, tipo = 'exito') => {
     const id = Date.now();
-    setToasts((prev) => [...prev, { id, mensaje }]);
+    setToasts((prev) => [...prev, { id, mensaje, tipo }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4500);
@@ -179,8 +176,8 @@ export default function Tarifas() {
       }
 
       if (dataTipos.length > 0 && !formData.id_tipo_habitacion) {
-        setFormData((prev) => ({ 
-          ...prev, 
+        setFormData((prev) => ({
+          ...prev,
           id_tipo_habitacion: dataTipos[0].id_tipo_habitacion,
           id_temporada: dataTemp[0]?.id_temporada || ''
         }));
@@ -217,13 +214,41 @@ export default function Tarifas() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const agregarRangoAlta = () => {
+    if (!nuevoRango.nombre_temporada.trim() || !nuevoRango.fecha_inicio || !nuevoRango.fecha_fin) {
+      lanzarToast('Por favor ingresa un nombre y el rango de fechas (Inicio y Fin).', 'error');
+      return;
+    }
+
+    setRangosTemporadaAlta((prev) => [...prev, { ...nuevoRango, id: Date.now() }]);
+    setNuevoRango({ nombre_temporada: '', fecha_inicio: '', fecha_fin: '', descripcion: '' });
+    lanzarToast('Rango de Temporada agregado a la lista.');
+  };
+
+  const eliminarRangoAlta = (id) => {
+    setRangosTemporadaAlta((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const eliminarTemporadaServidor = async (idTemporada) => {
+    try {
+      const res = await fetch(`${API_TEMPORADAS_BASE}/${idTemporada}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.mensaje || 'No se pudo eliminar la temporada');
+      lanzarToast('Temporada eliminada correctamente.');
+      cargarDatos();
+    } catch (err) {
+      lanzarToast(err.message, 'error');
+    }
+  };
+
   const abrirModalCrear = () => {
     setModoModal('CREAR');
     setEditId(null);
     setFormData({
       ...initialForm,
       id_tipo_habitacion: tiposHabitacion[0]?.id_tipo_habitacion || '',
-      id_temporada: temporadas[0]?.id_temporada || ''
+      id_temporada: temporadas[0]?.id_temporada || '',
+      estado: 'Activa'
     });
     setModalFormAbierto(true);
   };
@@ -247,7 +272,7 @@ export default function Tarifas() {
 
   const guardarTarifa = async (esBorrador = false) => {
     if (!formData.nombre_tarifa.trim() || !formData.id_tipo_habitacion || !formData.id_temporada) {
-      lanzarToast('Por favor completa el nombre, el tipo de habitación y la temporada.');
+      lanzarToast('Por favor completa el nombre, el tipo de habitación y la temporada.', 'error');
       return;
     }
 
@@ -256,9 +281,11 @@ export default function Tarifas() {
 
     try {
       setGuardando(true);
+      const estadoFinal = esBorrador ? 'Borrador' : 'Activa';
+
       const payload = {
         ...formData,
-        estado: esBorrador ? 'Borrador' : formData.estado || 'Activa',
+        estado: estadoFinal,
         id_usuario: idUsuarioActual
       };
 
@@ -278,32 +305,9 @@ export default function Tarifas() {
       lanzarToast(modoModal === 'CREAR' ? 'Tarifa registrada con éxito.' : 'Tarifa actualizada correctamente.');
       cargarDatos();
     } catch (err) {
-      lanzarToast(err.message || 'Error al guardar tarifa.');
+      lanzarToast(err.message || 'Error al guardar tarifa.', 'error');
     } finally {
       setGuardando(false);
-    }
-  };
-
-  const guardarTemporada = async (e) => {
-    e.preventDefault();
-    if (!formTemporada.nombre_temporada.trim()) {
-      lanzarToast('El nombre de la temporada es obligatorio.');
-      return;
-    }
-    try {
-      const res = await fetch(`${API_BASE}/temporadas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formTemporada)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.mensaje || 'Error al registrar temporada');
-      lanzarToast('Temporada configurada exitosamente.');
-      setModalTemporadaAbierto(false);
-      setFormTemporada({ nombre_temporada: '', dia_inicio: 1, mes_inicio: 1, dia_fin: 31, mes_fin: 12, descripcion: '' });
-      cargarDatos();
-    } catch (err) {
-      lanzarToast(err.message || 'Error al guardar temporada');
     }
   };
 
@@ -324,13 +328,13 @@ export default function Tarifas() {
       lanzarToast('Tarifa eliminada permanentemente.');
       cargarDatos();
     } catch (err) {
-      lanzarToast(err.message || 'Error al eliminar');
+      lanzarToast(err.message || 'Error al eliminar', 'error');
     }
   };
 
   const exportarExcel = () => {
     if (!tarifasFiltradas || tarifasFiltradas.length === 0) {
-      lanzarToast('No hay tarifas para exportar.');
+      lanzarToast('No hay tarifas para exportar.', 'error');
       return;
     }
     try {
@@ -339,34 +343,93 @@ export default function Tarifas() {
       const fechaStr = hoy.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const horaStr = hoy.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
 
-      const headers = ['Código', 'Nombre de la Tarifa', 'Habitación / Tipo', 'Temporada', 'Precio Base (USD)', 'Equivalente BCV (Bs.)', 'IVA (%)', 'Total c/ IVA (USD)', 'Total c/ IVA (Bs.)', 'Estado', 'Servicios'];
-      const rows = [];
+      const estilosTitulo = {
+        font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "1E3A8A" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      };
 
-      tarifasFiltradas.forEach((r) => {
+      const estilosSubtitulo = {
+        font: { name: 'Segoe UI', sz: 10, italic: true, color: { rgb: "334155" } },
+        fill: { fgColor: { rgb: "F1F5F9" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+
+      const estilosHeader = {
+        font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "2563EB" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+          top: { style: 'thin', color: { rgb: "CBD5E1" } },
+          bottom: { style: 'thin', color: { rgb: "CBD5E1" } },
+          left: { style: 'thin', color: { rgb: "CBD5E1" } },
+          right: { style: 'thin', color: { rgb: "CBD5E1" } }
+        }
+      };
+
+      const estilosCelda = {
+        font: { name: 'Segoe UI', sz: 10, color: { rgb: "0F172A" } },
+        alignment: { vertical: "center" },
+        border: {
+          top: { style: 'thin', color: { rgb: "E2E8F0" } },
+          bottom: { style: 'thin', color: { rgb: "E2E8F0" } },
+          left: { style: 'thin', color: { rgb: "E2E8F0" } },
+          right: { style: 'thin', color: { rgb: "E2E8F0" } }
+        }
+      };
+
+      const estilosCeldaNumero = { ...estilosCelda, alignment: { horizontal: "right", vertical: "center" }, numFmt: "$#,##0.00" };
+      const estilosCeldaCentro = { ...estilosCelda, alignment: { horizontal: "center", vertical: "center" } };
+
+      const headers = ['Código', 'Nombre de la Tarifa', 'Habitación / Tipo', 'Temporada', 'Precio Base (USD)', 'Equiv. BCV (Bs.)', 'IVA (%)', 'Total c/ IVA (USD)', 'Total c/ IVA (Bs.)', 'Estado', 'Servicios / Incluye'];
+
+      const wsData = [
+        [{ v: 'SISTEMA HOTELERO — CATÁLOGO DE TARIFAS Y TEMPORADAS', s: estilosTitulo }],
+        [{ v: `Generado: ${fechaStr} ${horaStr} | Tasa Oficial BCV: 1 USD = ${bcvRate.toFixed(2)} Bs.`, s: estilosSubtitulo }],
+        [],
+        headers.map(h => ({ v: h, s: estilosHeader }))
+      ];
+
+      let sumaTotalUSD = 0;
+      let sumaTotalBs = 0;
+
+      tarifasFiltradas.forEach((r, index) => {
         const precioBase = parseFloat(r.precio_base) || 0;
         const ivaP = parseFloat(r.iva) || 16;
         const precioBs = precioBase * bcvRate;
         const tUSD = precioBase * (1 + ivaP / 100);
         const tBs = tUSD * bcvRate;
 
-        rows.push([
-          `#TAR-${r.id_tarifa}`, r.nombre_tarifa || '', r.nombre_habitacion || '', r.nombre_temporada || '', precioBase, precioBs, `${ivaP}%`, tUSD, tBs, r.estado || 'Activa', r.incluye || ''
+        sumaTotalUSD += tUSD;
+        sumaTotalBs += tBs;
+
+        const filaEstilo = index % 2 === 0 ? { fill: { fgColor: { rgb: "FFFFFF" } } } : { fill: { fgColor: { rgb: "F8FAFC" } } };
+
+        wsData.push([
+          { v: `#TAR-${r.id_tarifa}`, s: { ...estilosCeldaCentro, ...filaEstilo } },
+          { v: r.nombre_tarifa || '', s: { ...estilosCelda, ...filaEstilo, font: { ...estilosCelda.font, bold: true } } },
+          { v: r.nombre_habitacion || '', s: { ...estilosCelda, ...filaEstilo } },
+          { v: r.nombre_temporada || 'General', s: { ...estilosCeldaCentro, ...filaEstilo } },
+          { v: precioBase, s: { ...estilosCeldaNumero, ...filaEstilo } },
+          { v: precioBs, s: { ...estilosCeldaNumero, ...filaEstilo, numFmt: "Bs #,##0.00" } },
+          { v: `${ivaP}%`, s: { ...estilosCeldaCentro, ...filaEstilo } },
+          { v: tUSD, s: { ...estilosCeldaNumero, ...filaEstilo, font: { ...estilosCeldaNumero.font, bold: true } } },
+          { v: tBs, s: { ...estilosCeldaNumero, ...filaEstilo, numFmt: "Bs #,##0.00", font: { ...estilosCeldaNumero.font, bold: true } } },
+          { v: r.estado || 'Activa', s: { ...estilosCeldaCentro, ...filaEstilo, font: { ...estilosCeldaCentro.font, color: { rgb: r.estado?.toLowerCase() === 'activa' ? "15803D" : "B45309" }, bold: true } } },
+          { v: r.incluye || '', s: { ...estilosCelda, ...filaEstilo } }
         ]);
       });
 
-      const ws = XLSX.utils.aoa_to_sheet([
-        ['SISTEMA HOTELERO — CATÁLOGO DE TARIFAS Y TEMPORADAS'],
-        [`Generado: ${fechaStr} ${horaStr} | Tasa BCV: 1 USD = ${bcvRate.toFixed(2)} Bs.`],
-        [],
-        headers,
-        ...rows
-      ]);
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 10 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } }];
+      ws['!cols'] = [{ wch: 12 }, { wch: 25 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 10 }, { wch: 18 }, { wch: 20 }, { wch: 14 }, { wch: 35 }];
 
       XLSX.utils.book_append_sheet(wb, ws, 'Catálogo de Tarifas');
       XLSX.writeFile(wb, `Tarifas_Hotel_${hoy.toISOString().slice(0, 10)}.xlsx`);
-      lanzarToast('Catálogo exportado exitosamente.');
+      lanzarToast('Catálogo profesional exportado a Excel con éxito.');
     } catch (err) {
-      lanzarToast('Error al generar Excel.');
+      console.error(err);
+      lanzarToast('Error al generar Excel estilizado.', 'error');
     }
   };
 
@@ -491,7 +554,9 @@ export default function Tarifas() {
             <select value={filtroTemporada} onChange={(e) => setFiltroTemporada(e.target.value)}>
               <option value="">Temporada: Todas</option>
               {temporadas.map((temp) => (
-                <option key={temp.id_temporada} value={temp.id_temporada}>{temp.nombre_temporada}</option>
+                <option key={temp.id_temporada} value={temp.id_temporada}>
+                  {temp.nombre_temporada}
+                </option>
               ))}
             </select>
             <ChevronDown className="select-arrow" size={14} />
@@ -513,7 +578,7 @@ export default function Tarifas() {
             <span>Exportar Excel</span>
           </button>
           <button type="button" className="btn-secundario-barra" onClick={() => setModalTemporadaAbierto(true)}>
-            <span>+ Definir Temporada</span>
+            <span>⚙️ Gestionar Temporadas</span>
           </button>
           <button type="button" className="btn-nueva-tarifa" onClick={abrirModalCrear}>
             <Plus size={18} />
@@ -558,6 +623,7 @@ export default function Tarifas() {
                 const precioNum = parseFloat(r.precio_base) || 0;
                 const ivaNum = parseFloat(r.iva) || 16;
                 const totalNum = precioNum * (1 + ivaNum / 100);
+                const esBorrador = r.estado?.toLowerCase() === 'borrador';
                 return (
                   <tr key={r.id_tarifa}>
                     <td><strong className="table-rate-id">#TAR-{r.id_tarifa}</strong></td>
@@ -566,18 +632,33 @@ export default function Tarifas() {
                       <small className="table-rate-desc">{r.incluye ? (r.incluye.length > 40 ? r.incluye.substring(0, 40) + '...' : r.incluye) : ''}</small>
                     </td>
                     <td><span className="table-room-name">{r.nombre_habitacion}</span></td>
-                    <td><span className="rate-badge" style={{ backgroundColor: '#e0f2fe', color: '#0369a1' }}>{r.nombre_temporada || 'General'}</span></td>
+                    <td><span className="rate-badge">{r.nombre_temporada || 'Temporada Baja (General)'}</span></td>
                     <td><strong className="table-price-base">{formatUSD(precioNum)}</strong></td>
                     <td><span className="table-price-bs">{formatBs(precioNum * bcvRate)}</span></td>
                     <td><strong className="table-price-total">{formatUSD(totalNum)}</strong></td>
                     <td><small className="table-occupancy">{r.ocupacion_base} huéspedes</small></td>
-                    <td><span className={`rate-badge ${r.estado?.toLowerCase() === 'activa' ? 'rate-badge-active' : 'rate-badge-draft'}`}>{r.estado}</span></td>
+                    <td><span className={`rate-badge ${esBorrador ? 'rate-badge-draft' : 'rate-badge-active'}`}>{r.estado}</span></td>
                     <td>
-                      <nav className="table-actions">
-                        <button type="button" className="btn-table-action" onClick={() => { setTarifaVer(r); setModalVerAbierto(true); }}><Eye size={16} /></button>
-                        <button type="button" className="btn-table-action" onClick={() => abrirModalEditar(r)}><Pencil size={16} /></button>
-                        <button type="button" className="btn-table-action delete" onClick={() => { setTarifaAEliminar(r); setModalEliminarAbierto(true); }}><Trash2 size={16} /></button>
-                      </nav>
+                      {/* Dentro del mapeo de tarifas (tarifasFiltradas.map) */}
+                      {(() => {
+                        const esTarifaProtegida = r.nombre_temporada && (
+                          r.nombre_temporada.toLowerCase().includes('temporada normal') ||
+                          r.nombre_temporada.toLowerCase().includes('temporada baja')
+                        );
+                        return (
+                          <nav className="table-actions">
+                            <button type="button" className="btn-table-action" onClick={() => { setTarifaVer(r); setModalVerAbierto(true); }} title="Ver detalles"><Eye size={16} /></button>
+                            <button type="button" className="btn-table-action" onClick={() => abrirModalEditar(r)} title="Editar tarifa"><Pencil size={16} /></button>
+                            {!esTarifaProtegida ? (
+                              <button type="button" className="btn-table-action delete" onClick={() => { setTarifaAEliminar(r); setModalEliminarAbierto(true); }} title="Eliminar tarifa"><Trash2 size={16} /></button>
+                            ) : (
+                              <span title="Tarifa base protegida (No eliminable)" style={{ padding: '4px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}>
+                                <Trash2 size={16} style={{ opacity: 0.4, cursor: 'not-allowed' }} />
+                              </span>
+                            )}
+                          </nav>
+                        );
+                      })()}
                     </td>
                   </tr>
                 );
@@ -587,63 +668,9 @@ export default function Tarifas() {
         )}
       </section>
 
-      <section className="analytics-grid">
-        <article className="chart-card">
-          <header className="chart-card-header">
-            <h3 className="chart-card-title">Aporte de Ingresos por Categoría</h3>
-            <span className="chart-card-subtitle">{mesCapitalizado}</span>
-          </header>
-          <section className="progress-group">
-            {tarifasActivas.length === 0 ? (
-              <p className="analytics-empty-message">No hay tarifas activas registradas.</p>
-            ) : (
-              tarifasActivas.map((t, idx) => {
-                const colores = ['#2563eb', '#7c3aed', '#16a34a', '#ea580c', '#06b6d4', '#ec4899', '#f59e0b'];
-                const aporte = (parseFloat(t.precio_base) || 0) * 30;
-                const porcentaje = ingresosProyectadosMes > 0 ? ((aporte / ingresosProyectadosMes) * 100).toFixed(1) : 0;
-                return (
-                  <article key={t.id_tarifa} className="analytics-progress-item">
-                    <section className="analytics-item-labels">
-                      <span>{t.nombre_habitacion || t.nombre_tarifa}</span>
-                      <span>{formatUSD(aporte)} ({porcentaje}%)</span>
-                    </section>
-                    <section className="analytics-item-bar">
-                      <article className="analytics-fill" style={{ width: `${porcentaje}%`, backgroundColor: colores[idx % colores.length] }} />
-                    </section>
-                  </article>
-                );
-              })
-            )}
-          </section>
-        </article>
-
-        <article className="chart-card">
-          <header className="chart-card-header">
-            <h3 className="chart-card-title">Modalidad de Monedas y Facturación</h3>
-            <DollarSign size={20} color="#2563eb" />
-          </header>
-          <section className="currency-flow-box">
-            <article className="currency-flow-card currency-flow-usd">
-              <section>
-                <strong className="currency-title-usd">Divisas USD (Moneda Base Referencial)</strong>
-                <small className="currency-desc">{tarifasActivas.length} tarifas activas fijadas en USD</small>
-              </section>
-              <strong className="currency-tag-usd">Base</strong>
-            </article>
-            <article className="currency-flow-card currency-flow-bs">
-              <section>
-                <strong className="currency-title-bs">Bolívares VES (Tasa Oficial BCV)</strong>
-                <small className="currency-desc">1 USD = {bcvRate.toFixed(2)} Bs · Punto de Venta, Pago Móvil</small>
-              </section>
-              <strong className="currency-tag-bs">En Vivo</strong>
-            </article>
-          </section>
-        </article>
-      </section>
-
       {/* MODAL CREAR / EDITAR TARIFA */}
       {modalFormAbierto && (
-        <section className="overlay-modal" onClick={() => setModalFormAbierto(false)}>
+        <section className="modal-overlay" onClick={() => setModalFormAbierto(false)}>
           <article className="modal-figma-card" onClick={(e) => e.stopPropagation()}>
             <header className="modal-figma-header">
               <section className="modal-header-title-group">
@@ -662,7 +689,7 @@ export default function Tarifas() {
                     <input type="text" name="nombre_tarifa" className="rate-input" value={formData.nombre_tarifa} onChange={handleInputChange} required />
                   </label>
 
-                  <section className="rate-grid-2 form-group-spaced">
+                  <section className="rate-grid-2 form-group-spaced" style={{ marginTop: '1rem' }}>
                     <label className="rate-form-group">
                       <span className="rate-label">Tipo de habitación</span>
                       <select name="id_tipo_habitacion" className="rate-select" value={formData.id_tipo_habitacion} onChange={handleInputChange}>
@@ -673,10 +700,13 @@ export default function Tarifas() {
                     </label>
 
                     <label className="rate-form-group">
-                      <span className="rate-label">Temporada aplicable</span>
-                      <select name="id_temporada" className="rate-select" value={formData.id_temporada} onChange={handleInputChange}>
+                      <span className="rate-label">Temporada aplicable *</span>
+                      <select name="id_temporada" className="rate-select" value={formData.id_temporada} onChange={handleInputChange} required>
+                        <option value="">Selecciona una temporada...</option>
                         {temporadas.map((temp) => (
-                          <option key={temp.id_temporada} value={temp.id_temporada}>{temp.nombre_temporada}</option>
+                          <option key={temp.id_temporada} value={temp.id_temporada}>
+                            {temp.nombre_temporada} ({temp.fecha_inicio} al {temp.fecha_fin})
+                          </option>
                         ))}
                       </select>
                     </label>
@@ -684,7 +714,7 @@ export default function Tarifas() {
                 </article>
 
                 <article className="rate-card">
-                  <h3 className="rate-card-title">Precio y Ocupación</h3>
+                  <h3 className="rate-card-title">Precio, Ocupación y Huésped Extra</h3>
                   <section className="rate-grid-2">
                     <label className="rate-form-group">
                       <span className="rate-label">Precio base (USD)</span>
@@ -693,6 +723,17 @@ export default function Tarifas() {
                     <label className="rate-form-group">
                       <span className="rate-label">Equivalente (Bs)</span>
                       <input type="text" className="rate-input rate-input-readonly" value={formatBs(baseBs)} readOnly />
+                    </label>
+                  </section>
+
+                  <section className="rate-grid-2" style={{ marginTop: '1rem' }}>
+                    <label className="rate-form-group">
+                      <span className="rate-label">Ocupación Base (Personas)</span>
+                      <input type="number" name="ocupacion_base" className="rate-input" value={formData.ocupacion_base} onChange={handleInputChange} min="1" required />
+                    </label>
+                    <label className="rate-form-group">
+                      <span className="rate-label">Costo Huésped Adicional (USD)</span>
+                      <input type="number" step="0.01" name="huesped_adicional" className="rate-input" value={formData.huesped_adicional} onChange={handleInputChange} min="0" required />
                     </label>
                   </section>
                 </article>
@@ -723,63 +764,142 @@ export default function Tarifas() {
 
             <footer className="modal-figma-footer">
               <button type="button" className="btn-action-cancel" onClick={() => setModalFormAbierto(false)}>Cancelar</button>
+              <button type="button" className="btn-action-draft" onClick={() => guardarTarifa(true)} disabled={guardando}>Guardar como Borrador</button>
               <button type="button" className="btn-action-create" onClick={() => guardarTarifa(false)} disabled={guardando}>
-                {guardando ? 'Guardando...' : 'Guardar tarifa'}
+                {guardando ? 'Guardando...' : 'Guardar tarifa activa'}
               </button>
             </footer>
           </article>
         </section>
       )}
 
-      {/* MODAL DEFINIR TEMPORADA (ALTA / BAJA) */}
+      {/* MODAL GESTIÓN DE TEMPORADAS (CREAR Y ELIMINAR TEMPORADAS) */}
       {modalTemporadaAbierto && (
-        <section className="overlay-modal" onClick={() => setModalTemporadaAbierto(false)}>
-          <article className="modal-small-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px', textAlign: 'left' }}>
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Definir Temporada (Alta / Baja)</h3>
-              <button type="button" className="btn-close-modal" onClick={() => setModalTemporadaAbierto(false)}><X size={16} /></button>
+        <section className="modal-overlay" onClick={() => setModalTemporadaAbierto(false)}>
+          <article className="modal-figma-card modal-temporadas-card" onClick={(e) => e.stopPropagation()}>
+            <header className="modal-figma-header">
+              <section className="modal-header-title-group">
+                <h2>Gestión de Temporadas</h2>
+                <p>Configura los rangos de fechas para temporadas especiales y administra tu calendario.</p>
+              </section>
+              <button type="button" className="btn-close-modal" onClick={() => setModalTemporadaAbierto(false)}><X size={18} /></button>
             </header>
-            <form onSubmit={guardarTemporada} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
-              <label className="rate-form-group">
-                <span className="rate-label">Nombre de la Temporada</span>
-                <input type="text" className="rate-input" placeholder="Ej. Temporada Alta - Diciembre" value={formTemporada.nombre_temporada} onChange={(e) => setFormTemporada({ ...formTemporada, nombre_temporada: e.target.value })} required />
-              </label>
-              <section className="rate-grid-2">
-                <label className="rate-form-group">
-                  <span className="rate-label">Día Inicio</span>
-                  <input type="number" className="rate-input" value={formTemporada.dia_inicio} onChange={(e) => setFormTemporada({ ...formTemporada, dia_inicio: parseInt(e.target.value) })} min="1" max="31" />
-                </label>
-                <label className="rate-form-group">
-                  <span className="rate-label">Mes Inicio (1-12)</span>
-                  <input type="number" className="rate-input" value={formTemporada.mes_inicio} onChange={(e) => setFormTemporada({ ...formTemporada, mes_inicio: parseInt(e.target.value) })} min="1" max="12" />
-                </label>
-              </section>
-              <section className="rate-grid-2">
-                <label className="rate-form-group">
-                  <span className="rate-label">Día Fin</span>
-                  <input type="number" className="rate-input" value={formTemporada.dia_fin} onChange={(e) => setFormTemporada({ ...formTemporada, dia_fin: parseInt(e.target.value) })} min="1" max="31" />
-                </label>
-                <label className="rate-form-group">
-                  <span className="rate-label">Mes Fin (1-12)</span>
-                  <input type="number" className="rate-input" value={formTemporada.mes_fin} onChange={(e) => setFormTemporada({ ...formTemporada, mes_fin: parseInt(e.target.value) })} min="1" max="12" />
-                </label>
-              </section>
-              <label className="rate-form-group">
-                <span className="rate-label">Descripción</span>
-                <textarea className="rate-input" placeholder="Detalles de la temporada..." value={formTemporada.descripcion} onChange={(e) => setFormTemporada({ ...formTemporada, descripcion: e.target.value })} />
-              </label>
-              <footer style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
-                <button type="button" className="btn-action-cancel" onClick={() => setModalTemporadaAbierto(false)}>Cancelar</button>
-                <button type="submit" className="btn-action-create">Guardar Temporada</button>
-              </footer>
-            </form>
+
+            <section className="modal-figma-body temporadas-body-grid">
+              {/* Columna Izquierda: Formulario para registrar temporada */}
+              <article className="rate-card temporada-form-card">
+                <h3 className="rate-card-title">+ Registrar Nueva Temporada</h3>
+                <section className="rate-form-group" style={{ gap: '0.85rem' }}>
+                  <label className="rate-form-group">
+                    <span className="rate-label">Nombre de la Temporada</span>
+                    <input
+                      type="text"
+                      className="rate-input"
+                      placeholder="Ej. Temporada Navideña, Vacaciones..."
+                      value={nuevoRango.nombre_temporada}
+                      onChange={(e) => setNuevoRango({ ...nuevoRango, nombre_temporada: e.target.value })}
+                    />
+                  </label>
+
+                  <section className="rate-grid-2">
+                    <label className="rate-form-group">
+                      <span className="rate-label">Fecha Inicio</span>
+                      <input
+                        type="date"
+                        className="rate-input"
+                        value={nuevoRango.fecha_inicio}
+                        onChange={(e) => setNuevoRango({ ...nuevoRango, fecha_inicio: e.target.value })}
+                      />
+                    </label>
+                    <label className="rate-form-group">
+                      <span className="rate-label">Fecha Fin</span>
+                      <input
+                        type="date"
+                        className="rate-input"
+                        value={nuevoRango.fecha_fin}
+                        onChange={(e) => setNuevoRango({ ...nuevoRango, fecha_fin: e.target.value })}
+                      />
+                    </label>
+                  </section>
+
+                  <button
+                    type="button"
+                    className="btn-nueva-tarifa"
+                    style={{ marginTop: '0.5rem', justifyContent: 'center', width: '100%' }}
+                    onClick={async () => {
+                      if (!nuevoRango.nombre_temporada.trim() || !nuevoRango.fecha_inicio || !nuevoRango.fecha_fin) {
+                        lanzarToast('Completa todos los campos de la temporada.', 'error');
+                        return;
+                      }
+                      try {
+                        const res = await fetch(API_TEMPORADAS_BASE, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(nuevoRango)
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.mensaje || 'Error al crear temporada');
+                        lanzarToast('Temporada creada con éxito.');
+                        setNuevoRango({ nombre_temporada: '', fecha_inicio: '', fecha_fin: '', descripcion: '' });
+                        cargarDatos();
+                      } catch (err) {
+                        lanzarToast(err.message, 'error');
+                      }
+                    }}
+                  >
+                    Guardar Temporada
+                  </button>
+                </section>
+              </article>
+
+              {/* Columna Derecha: Listado de Temporadas Actuales */}
+              <article className="rate-card temporada-list-card">
+                <h3 className="rate-card-title">Temporadas Existentes ({temporadas.length})</h3>
+                {temporadas.length === 0 ? (
+                  <p className="rate-helper-text">No hay temporadas registradas actualmente.</p>
+                ) : (
+                  <ul className="lista-temporadas-gestion-clean">
+                    {temporadas.map((temp) => {
+                      const esProtegida = temp.nombre_temporada.toLowerCase().includes('temporada normal') ||
+                        temp.nombre_temporada.toLowerCase().includes('baja') || temp.fecha_inicio === 'N/A';
+                      return (
+                        <li key={temp.id_temporada} className="item-temporada-gestion-clean">
+                          <div className="temporada-info-gestion">
+                            <span className="nombre-temporada-gestion">
+                              {temp.nombre_temporada}
+                            </span>
+                            <span className="rate-helper-text">Rango: <strong>{temp.fecha_inicio}</strong> al <strong>{temp.fecha_fin}</strong></span>
+                          </div>
+                          {!esProtegida ? (
+                            <button
+                              type="button"
+                              onClick={() => eliminarTemporadaServidor(temp.id_temporada)}
+                              className="btn-eliminar-temporada-clean"
+                              title="Eliminar Temporada"
+                            >
+                              <Trash2 size={15} /> <span>Eliminar</span>
+                            </button>
+                          ) : (
+                            <span className="badge-protegida-clean" title="Temporada base del sistema protegida">Protegida</span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </article>
+            </section>
+
+            <footer className="modal-figma-footer">
+              <button type="button" className="btn-action-cancel" onClick={() => setModalTemporadaAbierto(false)}>Cerrar</button>
+            </footer>
           </article>
         </section>
       )}
 
       {/* MODAL VER DETALLES */}
       {modalVerAbierto && tarifaVer && (
-        <section className="overlay-modal" onClick={() => setModalVerAbierto(false)}>
+        <section className="modal-overlay" onClick={() => setModalVerAbierto(false)}>
           <article className="modal-small-card modal-detalles-card" onClick={(e) => e.stopPropagation()}>
             <header className="modal-detalles-header">
               <h3 className="modal-detalles-title">Detalles de la Tarifa</h3>
@@ -803,9 +923,9 @@ export default function Tarifas() {
         </section>
       )}
 
-      {/* MODAL ELIMINAR */}
+      {/* MODAL ELIMINAR TARIFA */}
       {modalEliminarAbierto && tarifaAEliminar && (
-        <section className="overlay-modal" onClick={() => setModalEliminarAbierto(false)}>
+        <section className="modal-overlay" onClick={() => setModalEliminarAbierto(false)}>
           <article className="modal-small-card" onClick={(e) => e.stopPropagation()}>
             <section className="modal-delete-icon-box"><Trash2 size={26} /></section>
             <h3 className="modal-delete-title">¿Eliminar Tarifa?</h3>
@@ -820,7 +940,7 @@ export default function Tarifas() {
 
       {/* MODAL TASA BCV */}
       {modalBcvAbierto && (
-        <section className="overlay-modal" onClick={() => setModalBcvAbierto(false)}>
+        <section className="modal-overlay" onClick={() => setModalBcvAbierto(false)}>
           <article className="modal-small-card modal-bcv-card" onClick={(e) => e.stopPropagation()}>
             <header className="modal-bcv-header">
               <h3 className="modal-bcv-title"><TrendingUp size={18} color="#2563eb" /> Actualizar Tasa BCV</h3>
@@ -843,7 +963,7 @@ export default function Tarifas() {
       <aside className="toast-container-fixed">
         {toasts.map((t) => (
           <article key={t.id} className="toast-item">
-            <Check size={18} color="#16a34a" />
+            {t.tipo === 'error' ? <X size={18} color="#ef4444" /> : <Check size={18} color="#16a34a" />}
             <span className="toast-text">{t.mensaje}</span>
           </article>
         ))}
