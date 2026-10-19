@@ -61,23 +61,23 @@ export default function Huespedes() {
     cargarHuespedes();
   }, []);
 
-  // --- VALIDACIÓN DE FORMULARIO EN TIEMPO REAL ---
   const validarCampo = (name, value) => {
     let error = '';
     if (name === 'nombre') {
-      if (!value.trim()) error = 'El nombre es obligatorio.';
+      if (!value || !value.trim()) error = 'El nombre es obligatorio.';
       else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(value)) error = 'Solo se permiten letras.';
     }
     if (name === 'num_documento') {
-      if (!value.trim()) error = 'El número de documento es obligatorio.';
+      if (!value || !value.trim()) error = 'El número de documento es obligatorio.';
       else if (!/^\d+$/.test(value)) error = 'Solo se permiten números.';
     }
     if (name === 'correo') {
-      if (!value.trim()) error = 'El correo es obligatorio.';
+      if (!value || !value.trim()) error = 'El correo es obligatorio.';
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = 'Formato de correo inválido.';
     }
-    if (name === 'telefono' && value.trim()) {
-      if (!/^\d+$/.test(value)) error = 'Solo se permiten números en el teléfono.';
+    if (name === 'telefono') {
+      if (!value || !value.trim()) error = 'El teléfono es obligatorio.';
+      else if (!/^\d+$/.test(value)) error = 'Solo se permiten números en el teléfono.';
     }
     return error;
   };
@@ -100,7 +100,6 @@ export default function Huespedes() {
   };
 
   const abrirModalEditar = (huesped) => {
-
     setFormData({
       id_huesped: huesped.id_huesped,
       nombre: huesped.nombre || '',
@@ -116,7 +115,6 @@ export default function Huespedes() {
   };
 
   const cerrarModalForm = () => {
-
     if (guardando) return;
     setModalFormAbierto(false);
     setFormData(estadoInicialForm);
@@ -124,18 +122,28 @@ export default function Huespedes() {
   };
 
   const handleSubmit = async (e) => {
-
     e.preventDefault();
 
+    // 1. Declarar el objeto de errores primero
     const erroresTemp = {};
-    Object.keys(formData).forEach((key) => {
-      const err = validarCampo(key, formData[key]);
-      if (err) erroresTemp[key] = err;
-    });
 
+    // 2. Validar cada campo obligatorio de forma explícita
+    const errNombre = validarCampo('nombre', formData.nombre);
+    if (errNombre) erroresTemp.nombre = errNombre;
+
+    const errDoc = validarCampo('num_documento', formData.num_documento);
+    if (errDoc) erroresTemp.num_documento = errDoc;
+
+    const errCorreo = validarCampo('correo', formData.correo);
+    if (errCorreo) erroresTemp.correo = errCorreo;
+
+    const errTel = validarCampo('telefono', formData.telefono);
+    if (errTel) erroresTemp.telefono = errTel;
+
+    // 3. Si hay errores, mostrarlos en pantalla y detener el envío
     if (Object.keys(erroresTemp).length > 0) {
       setErroresForm(erroresTemp);
-      return;
+      return; 
     }
 
     setGuardando(true);
@@ -161,14 +169,13 @@ export default function Huespedes() {
       if (!respuesta.ok) {
         const errData = await respuesta.json().catch(() => ({}));
         let mensajeError = errData.mensaje || `Error ${respuesta.status}: Fallo al procesar.`;
-        if (respuesta.status === 400) mensajeError = 'Verifique los campos obligatorios o la duplicidad del documento.';
+        if (respuesta.status === 400) mensajeError = errData.mensaje || 'Verifique los campos obligatorios o la duplicidad del documento.';
         else if (respuesta.status === 404) mensajeError = 'El huésped no existe o fue removido.';
         else if (respuesta.status === 500) mensajeError = 'Error interno del servidor. Intente más tarde.';
 
         throw new Error(mensajeError);
       }
 
-      // Éxito: cerrar modal de formulario y mostrar Modal de Exito
       cerrarModalForm();
       cargarHuespedes();
 
@@ -187,7 +194,7 @@ export default function Huespedes() {
         tipo: 'error',
         titulo: 'Error al Procesar Datos',
         mensaje: err.message,
-        accionConfirmar: () => handleSubmit(e) // Reintentar
+        accionConfirmar: () => { }
       });
     } finally {
       setGuardando(false);
@@ -207,16 +214,17 @@ export default function Huespedes() {
   };
 
   const ejecutarEliminacion = async (id) => {
-    // 👇 OBTENER SESIÓN ACTIVA
     const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
     const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
 
     try {
-      const respuesta = await fetch(`${API_URL}/${id}?id_usuario=${idUsuarioActual}`, { 
+      const respuesta = await fetch(`${API_URL}/${id}?id_usuario=${idUsuarioActual}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
       });
-      if (!respuesta.ok) throw new Error('No se pudo eliminar el registro seleccionado.');
+
+      const resData = await respuesta.json().catch(() => ({}));
+      if (!respuesta.ok) throw new Error(resData.mensaje || 'No se pudo eliminar el registro seleccionado.');
 
       cargarHuespedes();
       setAlerta({
@@ -438,7 +446,7 @@ export default function Huespedes() {
                 </label>
 
                 <label className="campo medio">
-                  <span className="label-texto">Teléfono</span>
+                  <span className="label-texto">Teléfono *</span>
                   <input
                     type="tel"
                     name="telefono"
@@ -446,6 +454,7 @@ export default function Huespedes() {
                     value={formData.telefono}
                     onChange={handleChange}
                     className={erroresForm.telefono ? 'input-error' : ''}
+                    required
                   />
                   {erroresForm.telefono && <span className="texto-error-campo">{erroresForm.telefono}</span>}
                 </label>
@@ -487,12 +496,10 @@ export default function Huespedes() {
         </aside>
       )}
 
-      {/* --- MODAL DE ALERTAS PERSONALIZADO (ÉXITO, ERROR Y CONFIRMACIÓN) --- */}
+      {/* --- MODAL DE ALERTAS PERSONALIZADO --- */}
       {alerta.abierto && (
         <aside className="overlay-modal z-alto">
           <article className="modal-alerta-tarjeta">
-
-            {/* Ícono dinámico */}
             <header className={`icono-alerta-circulo ${alerta.tipo}`}>
               {alerta.tipo === 'exito' && (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -518,7 +525,6 @@ export default function Huespedes() {
             <h3 className="titulo-alerta">{alerta.titulo}</h3>
             <p className="mensaje-alerta">{alerta.mensaje}</p>
 
-            {/* Acciones según tipo de alerta */}
             <footer className="acciones-alerta">
               {alerta.tipo === 'confirmar' ? (
                 <>
@@ -541,27 +547,13 @@ export default function Huespedes() {
                   </button>
                 </>
               ) : alerta.tipo === 'error' ? (
-                <>
-                  {alerta.accionConfirmar && (
-                    <button
-                      type="button"
-                      className="boton-alerta-reintentar"
-                      onClick={() => {
-                        setAlerta((prev) => ({ ...prev, abierto: false }));
-                        alerta.accionConfirmar();
-                      }}
-                    >
-                      Reintentar
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="boton-alerta-secundario"
-                    onClick={() => setAlerta((prev) => ({ ...prev, abierto: false }))}
-                  >
-                    Cerrar
-                  </button>
-                </>
+                <button
+                  type="button"
+                  className="boton-alerta-secundario"
+                  onClick={() => setAlerta((prev) => ({ ...prev, abierto: false }))}
+                >
+                  Cerrar
+                </button>
               ) : (
                 <button
                   type="button"

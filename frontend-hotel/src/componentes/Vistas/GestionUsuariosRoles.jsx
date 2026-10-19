@@ -3,14 +3,93 @@ import '../../estilos/huespedes.css';
 
 const API_USUARIOS = 'http://localhost:3000/api/usuarios';
 const API_ROLES = 'http://localhost:3000/api/roles';
-const API_MODULOS = 'http://localhost:3000/api/modulos';
+
+// Módulos definidos directamente para garantizar renderizado inmediato y robusto
+const MODULOS_ESTATICOS = [
+    {
+        id_modulo: 1,
+        nombre_modulo: 'Inicio',
+        funciones: [{ id_funcion: 1, nombre_funcion: 'Ver Inicio' }]
+    },
+    {
+        id_modulo: 2,
+        nombre_modulo: 'Reservas',
+        funciones: [
+            { id_funcion: 2, nombre_funcion: 'Ver Reservas' },
+            { id_funcion: 3, nombre_funcion: 'Crear Reservas' },
+            { id_funcion: 4, nombre_funcion: 'Editar Reservas' },
+            { id_funcion: 5, nombre_funcion: 'Eliminar Reservas' }
+        ]
+    },
+    {
+        id_modulo: 3,
+        nombre_modulo: 'Huéspedes',
+        funciones: [
+            { id_funcion: 6, nombre_funcion: 'Ver Huéspedes' },
+            { id_funcion: 7, nombre_funcion: 'Crear Huéspedes' },
+            { id_funcion: 8, nombre_funcion: 'Editar Huéspedes' },
+            { id_funcion: 9, nombre_funcion: 'Eliminar Huéspedes' }
+        ]
+    },
+    {
+        id_modulo: 4,
+        nombre_modulo: 'Finanzas',
+        funciones: [
+            { id_funcion: 10, nombre_funcion: 'Ver Finanzas' },
+            { id_funcion: 11, nombre_funcion: 'Gestionar Pagos y Transacciones' }
+        ]
+    },
+    {
+        id_modulo: 5,
+        nombre_modulo: 'Habitaciones',
+        funciones: [
+            { id_funcion: 12, nombre_funcion: 'Ver Habitaciones' },
+            { id_funcion: 13, nombre_funcion: 'Crear Habitaciones' },
+            { id_funcion: 14, nombre_funcion: 'Editar Habitaciones' },
+            { id_funcion: 15, nombre_funcion: 'Eliminar Habitaciones' }
+        ]
+    },
+    {
+        id_modulo: 6,
+        nombre_modulo: 'Tarifas',
+        funciones: [
+            { id_funcion: 16, nombre_funcion: 'Ver Tarifas' },
+            { id_funcion: 17, nombre_funcion: 'Crear Tarifas' },
+            { id_funcion: 18, nombre_funcion: 'Editar Tarifas' },
+            { id_funcion: 19, nombre_funcion: 'Eliminar Tarifas' }
+        ]
+    },
+    {
+        id_modulo: 7,
+        nombre_modulo: 'Auditoría',
+        funciones: [{ id_funcion: 20, nombre_funcion: 'Ver Auditoría' }]
+    },
+    {
+        id_modulo: 8,
+        nombre_modulo: 'Control Emergencia',
+        funciones: [
+            { id_funcion: 21, nombre_funcion: 'Ver Control de Emergencia' },
+            { id_funcion: 22, nombre_funcion: 'Activar Alertas de Emergencia' }
+        ]
+    },
+    {
+        id_modulo: 9,
+        nombre_modulo: 'Rol y Usuarios',
+        funciones: [
+            { id_funcion: 23, nombre_funcion: 'Ver Roles y Usuarios' },
+            { id_funcion: 24, nombre_funcion: 'Crear Roles y Usuarios' },
+            { id_funcion: 25, nombre_funcion: 'Editar Roles y Usuarios' },
+            { id_funcion: 26, nombre_funcion: 'Eliminar Roles y Usuarios' }
+        ]
+    }
+];
 
 export default function GestionUsuariosRoles() {
     const [pestannaActiva, setPestannaActiva] = useState('usuarios');
 
     const [usuarios, setUsuarios] = useState([]);
     const [roles, setRoles] = useState([]);
-    const [modulosSistema, setModulosSistema] = useState([]);
+    const [modulosSistema, setModulosSistema] = useState(MODULOS_ESTATICOS);
 
     // Modales
     const [modalUsuarioAbierto, setModalUsuarioAbierto] = useState(false);
@@ -40,9 +119,6 @@ export default function GestionUsuariosRoles() {
 
             const respUsuarios = await fetch(API_USUARIOS);
             if (respUsuarios.ok) setUsuarios(await respUsuarios.json());
-
-            const respModulos = await fetch(API_MODULOS);
-            if (respModulos.ok) setModulosSistema(await respModulos.json());
         } catch (err) {
             console.error('Error al conectar con el servidor:', err);
         }
@@ -86,11 +162,9 @@ export default function GestionUsuariosRoles() {
         const idsFuncionesModulo = funcionesDelModulo.map(f => f.id_funcion);
 
         if (estaSeleccionado) {
-            // Desmarcar módulo y sus funciones
             nuevosModulos = nuevosModulos.filter(m => m !== idModulo);
             nuevasFunciones = nuevasFunciones.filter(f => !idsFuncionesModulo.includes(f));
         } else {
-            // Marcar módulo y todas sus funciones
             nuevosModulos.push(idModulo);
             idsFuncionesModulo.forEach(idF => {
                 if (!nuevasFunciones.includes(idF)) nuevasFunciones.push(idF);
@@ -107,14 +181,12 @@ export default function GestionUsuariosRoles() {
 
         if (estaSeleccionado) {
             nuevasFunciones = nuevasFunciones.filter(f => f !== idFuncion);
-            // Si ya no queda ninguna función seleccionada de este módulo, desmarcamos el módulo
             const quedanOtras = funcionesDelModulo.some(f => f.id_funcion !== idFuncion && nuevasFunciones.includes(f.id_funcion));
             if (!quedanOtras) {
                 nuevosModulos = nuevosModulos.filter(m => m !== idModulo);
             }
         } else {
             nuevasFunciones.push(idFuncion);
-            // Al marcar una función, aseguramos que su módulo esté marcado
             if (!nuevosModulos.includes(idModulo)) {
                 nuevosModulos.push(idModulo);
             }
@@ -173,7 +245,6 @@ export default function GestionUsuariosRoles() {
     };
 
     const confirmarEliminarRol = (id, nombre) => {
-        
         const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
         const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
 
@@ -237,7 +308,6 @@ export default function GestionUsuariosRoles() {
         const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
 
         try {
-            
             const url = modoModalUsuario === 'CREAR' ? API_USUARIOS : `${API_USUARIOS}/${formDataUsuario.id_usuario}`;
             const metodo = modoModalUsuario === 'CREAR' ? 'POST' : 'PUT';
 
@@ -272,7 +342,6 @@ export default function GestionUsuariosRoles() {
     };
 
     const confirmarEliminarUsuario = (id, nombre) => {
-        // 👇 OBTENER SESIÓN ACTIVA
         const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
         const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
 

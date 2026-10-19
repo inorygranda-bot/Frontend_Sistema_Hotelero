@@ -6,6 +6,8 @@ const API_RESERVAS_URL = 'http://localhost:3000/api/reservas';
 const API_HUESPEDES_URL = 'http://localhost:3000/api/huespedes';
 const API_HABITACIONES_URL = 'http://localhost:3000/api/habitaciones';
 const API_RECARGOS_URL = 'http://localhost:3000/api/recargos';
+const API_TEMPORADAS_URL = 'http://localhost:3000/api/tarifas/temporadas';
+const API_TARIFAS_URL = 'http://localhost:3000/api/tarifas';
 const API_TASA_BCV_URL = 'http://localhost:3000/api/tarifas/tasa-bcv';
 
 export default function Reservas() {
@@ -13,6 +15,8 @@ export default function Reservas() {
   const [huespedes, setHuespedes] = useState([]);
   const [habitaciones, setHabitaciones] = useState([]);
   const [recargosDisponibles, setRecargosDisponibles] = useState([]);
+  const [temporadas, setTemporadas] = useState([]);
+  const [tarifasCatalogo, setTarifasCatalogo] = useState([]);
   const [bcvRate, setBcvRate] = useState(875.65);
 
   const [cargando, setCargando] = useState(true);
@@ -22,7 +26,7 @@ export default function Reservas() {
 
   const [modalFormAbierto, setModalFormAbierto] = useState(false);
   const [modoModal, setModoModal] = useState('CREAR');
-  const [pasoFormulario, setPasoFormulario] = useState('EDITANDO'); // 'EDITANDO' o 'CONFIRMANDO'
+  const [pasoFormulario, setPasoFormulario] = useState('EDITANDO');
   const [guardando, setGuardando] = useState(false);
   const [erroresForm, setErroresForm] = useState({});
 
@@ -58,11 +62,13 @@ export default function Reservas() {
     setErrorTabla(null);
 
     try {
-      const [respReservas, respHuespedes, respHabitaciones, respRecargos, respBcv] = await Promise.all([
+      const [respReservas, respHuespedes, respHabitaciones, respRecargos, respTemporadas, respTarifas, respBcv] = await Promise.all([
         fetch(API_RESERVAS_URL).catch(() => ({ ok: false })),
         fetch(API_HUESPEDES_URL).catch(() => ({ ok: false })),
         fetch(API_HABITACIONES_URL).catch(() => ({ ok: false })),
         fetch(API_RECARGOS_URL).catch(() => ({ ok: false })),
+        fetch(API_TEMPORADAS_URL).catch(() => ({ ok: false })),
+        fetch(API_TARIFAS_URL).catch(() => ({ ok: false })),
         fetch(API_TASA_BCV_URL).catch(() => ({ ok: false }))
       ]);
 
@@ -86,6 +92,16 @@ export default function Reservas() {
         setRecargosDisponibles(Array.isArray(datosRecargos) ? datosRecargos : []);
       }
 
+      if (respTemporadas.ok) {
+        const datosTemp = await respTemporadas.json();
+        setTemporadas(Array.isArray(datosTemp) ? datosTemp : []);
+      }
+
+      if (respTarifas.ok) {
+        const datosTarifas = await respTarifas.json();
+        setTarifasCatalogo(Array.isArray(datosTarifas) ? datosTarifas : []);
+      }
+
       if (respBcv.ok) {
         const bcvData = await respBcv.json();
         if (bcvData.tasa) setBcvRate(parseFloat(bcvData.tasa));
@@ -102,17 +118,94 @@ export default function Reservas() {
     cargarDatos();
   }, []);
 
-  const calcularDetalleFinanciero = (formData) => {
+ const calcularDetalleFinanciero = (formData) => {
     const habitacionSeleccionada = habitaciones.find(
       (h) => String(h.codigo_habitacion) === String(formData.codigo_habitacion)
     );
 
-    const precioBaseNoche = parseFloat(habitacionSeleccionada?.precio_base || 140);
-    const ocupacionBase = habitacionSeleccionada?.ocupacion_base !== undefined && habitacionSeleccionada?.ocupacion_base !== null
+    let precioBaseNoche = parseFloat(habitacionSeleccionada?.precio_base || 120);
+    let ocupacionBase = habitacionSeleccionada?.ocupacion_base !== undefined && habitacionSeleccionada?.ocupacion_base !== null
       ? parseInt(habitacionSeleccionada.ocupacion_base)
       : 2;
-    const cargoHuespedAdicional = parseFloat(habitacionSeleccionada?.huesped_adicional || 15);
-    const ivaPorc = parseFloat(habitacionSeleccionada?.iva || 16);
+    let cargoHuespedAdicional = parseFloat(habitacionSeleccionada?.huesped_adicional || 15);
+    let ivaPorc = parseFloat(habitacionSeleccionada?.iva || 16);
+    let temporadaAplicadaNombre = 'Temporada normal (Base)';
+
+    if (formData.fecha_checkin && habitacionSeleccionada) {
+      const [yearCheckin, monthCheckin, dayCheckin] = formData.fecha_checkin.split('-').map(Number);
+      const fechaCheckinReal = new Date(Date.UTC(yearCheckin, monthCheckin - 1, dayCheckin));
+
+      const temporadaEncontrada = temporadas.find((temp) => {
+        if (!temp.fecha_inicio || !temp.fecha_fin || temp.fecha_inicio === 'N/A' || temp.fecha_fin === 'N/A') {
+          return false;
+        }
+
+        const [mIni, dIni] = temp.fecha_inicio.split('-').map(Number);
+        const [mFin, dFin] = temp.fecha_fin.split('-').map(Number);
+
+        if (!mIni || !dIni || !mFin || !dFin) return false;
+
+        let fechaInicioTemp = new Date(Date.UTC(yearCheckin, mIni - 1, dIni));
+        let fechaFinTemp = new Date(Date.UTC(yearCheckin, mFin - 1, dFin));
+
+        if (mIni > mFin) {
+          if (monthCheckin >= mIni) {
+            fechaFinTemp = new Date(Date.UTC(yearCheckin + 1, mFin - 1, dFin));
+          } else {
+            fechaInicioTemp = new Date(Date.UTC(yearCheckin - 1, mIni - 1, dIni));
+          }
+        }
+
+        return fechaCheckinReal >= fechaInicioTemp && fechaCheckinReal <= fechaFinTemp;
+      });
+
+      let idTemporadaObjetivo = null;
+
+      if (temporadaEncontrada) {
+        temporadaAplicadaNombre = temporadaEncontrada.nombre_temporada;
+        idTemporadaObjetivo = temporadaEncontrada.id_temporada;
+      } else {
+        const temporadaNormal = temporadas.find((t) => 
+          t.fecha_inicio === 'N/A' || 
+          t.nombre_temporada.toLowerCase().includes('temporada normal') || 
+          t.nombre_temporada.toLowerCase().includes('baja')
+        );
+        if (temporadaNormal) {
+          temporadaAplicadaNombre = temporadaNormal.nombre_temporada;
+          idTemporadaObjetivo = temporadaNormal.id_temporada;
+        }
+      }
+
+       if (idTemporadaObjetivo) {
+        const tarifaCoincidente = tarifasCatalogo.find((t) => {
+          const matchTipo = String(t.id_tipo_habitacion) === String(habitacionSeleccionada.id_tipo_habitacion);
+          const matchEstado = t.estado?.toLowerCase() === 'activa';
+          const matchTemp = Array.isArray(t.id_temporadas) 
+            ? t.id_temporadas.some(idT => String(idT) === String(idTemporadaObjetivo))
+            : String(t.id_temporada) === String(idTemporadaObjetivo);
+          
+          return matchTipo && matchEstado && matchTemp;
+        });
+
+        if (tarifaCoincidente) {
+          precioBaseNoche = parseFloat(tarifaCoincidente.precio_base || precioBaseNoche);
+          ocupacionBase = parseInt(tarifaCoincidente.ocupacion_base || ocupacionBase);
+          cargoHuespedAdicional = parseFloat(tarifaCoincidente.huesped_adicional || cargoHuespedAdicional);
+          ivaPorc = parseFloat(tarifaCoincidente.iva || ivaPorc);
+        } else {
+          const tarifaGenerica = tarifasCatalogo.find((t) => 
+            String(t.id_tipo_habitacion) === String(habitacionSeleccionada.id_tipo_habitacion) &&
+            t.estado?.toLowerCase() === 'activa'
+          );
+          if (tarifaGenerica) {
+            precioBaseNoche = parseFloat(tarifaGenerica.precio_base || precioBaseNoche);
+            ocupacionBase = parseInt(tarifaGenerica.ocupacion_base || ocupacionBase);
+            cargoHuespedAdicional = parseFloat(tarifaGenerica.huesped_adicional || cargoHuespedAdicional);
+            ivaPorc = parseFloat(tarifaGenerica.iva || ivaPorc);
+          }
+        }
+      }
+    }
 
     let noches = 1;
     if (formData.fecha_checkin && formData.fecha_checkout) {
@@ -122,9 +215,7 @@ export default function Reservas() {
       if (!isNaN(fIn.getTime()) && !isNaN(fOut.getTime())) {
         const diffMs = fOut.getTime() - fIn.getTime();
         const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
-        if (diffDias > 0) {
-          noches = diffDias;
-        }
+        if (diffDias > 0) noches = diffDias;
       }
     }
 
@@ -144,13 +235,9 @@ export default function Reservas() {
           const tipoOp = String(recObj.tipo_operacion || '').toLowerCase();
           const tipoCalc = String(recObj.tipo_calculo || '').toLowerCase();
 
-          let montoItem = tipoOp.includes('porcentaje')
-            ? subtotalAlojamiento * (val / 100)
-            : val;
+          let montoItem = tipoOp.includes('porcentaje') ? subtotalAlojamiento * (val / 100) : val;
+          if (tipoCalc.includes('resta') || tipoCalc.includes('descuento')) montoItem = -montoItem;
 
-          if (tipoCalc.includes('resta') || tipoCalc.includes('descuento')) {
-            montoItem = -montoItem;
-          }
           totalAjustesCalculados += montoItem;
           listaRecargosAplicados.push({ ...recObj, montoCalculado: montoItem });
         }
@@ -172,7 +259,8 @@ export default function Reservas() {
       ivaPorc,
       ivaUSD,
       totalUSD,
-      totalBs
+      totalBs,
+      temporadaAplicadaNombre
     };
   };
 
@@ -233,6 +321,7 @@ export default function Reservas() {
     setErroresForm({});
     setModoModal('CREAR');
     setPasoFormulario('EDITANDO');
+    setGuardando(false);
     setModalFormAbierto(true);
   };
 
@@ -253,6 +342,7 @@ export default function Reservas() {
     setErroresForm({});
     setModoModal('EDITAR');
     setPasoFormulario('EDITANDO');
+    setGuardando(false);
     setModalFormAbierto(true);
     if (modalDetalleAbierto) cerrarDetalle();
   };
@@ -278,7 +368,6 @@ export default function Reservas() {
   };
 
   const eliminarReserva = async (codigoReserva) => {
-
     const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
     const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
 
@@ -295,7 +384,7 @@ export default function Reservas() {
   };
 
   const pasarAConfirmacion = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     const habSeleccionada = habitaciones.find(h => String(h.codigo_habitacion) === String(formDataReserva.codigo_habitacion));
 
     const erroresTemp = {};
@@ -318,8 +407,12 @@ export default function Reservas() {
     setPasoFormulario('CONFIRMANDO');
   };
 
-  const enviarFormularioReservaFinal = async () => {
+  const enviarFormularioReservaFinal = async (e) => {
+    if (e) e.preventDefault();
+    if (guardando) return;
+
     setGuardando(true);
+
     const esCrear = modoModal === 'CREAR';
     const url = esCrear ? API_RESERVAS_URL : `${API_RESERVAS_URL}/${formDataReserva.codigo_reserva}`;
     const metodo = esCrear ? 'POST' : 'PUT';
@@ -342,8 +435,11 @@ export default function Reservas() {
       const datosRespuesta = await respuesta.json().catch(() => ({}));
       if (!respuesta.ok) throw new Error(datosRespuesta.mensaje || 'Error al guardar la reserva.');
 
-      cerrarModalFormulario();
-      cargarDatos();
+      setModalFormAbierto(false);
+      setFormDataReserva(estadoInicialFormReserva);
+      setPasoFormulario('EDITANDO');
+      await cargarDatos();
+
       setAlerta({
         abierto: true,
         tipo: 'exito',
@@ -368,9 +464,7 @@ export default function Reservas() {
   };
 
   const cambiarEstadoReserva = async (nuevoEstado) => {
-
     if (!reservaSeleccionada) return;
-
     const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
     const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
 
@@ -378,7 +472,7 @@ export default function Reservas() {
       const respuesta = await fetch(`${API_RESERVAS_URL}/${reservaSeleccionada.codigo_reserva}/estado`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: nuevoEstado, id_usuario: idUsuarioActual }) // <-- Enviamos el usuario responsable
+        body: JSON.stringify({ estado: nuevoEstado, id_usuario: idUsuarioActual })
       });
 
       const datos = await respuesta.json().catch(() => ({}));
@@ -536,7 +630,7 @@ export default function Reservas() {
                       <option value="">Seleccione una habitación...</option>
                       {habitaciones.map((hab) => (
                         <option key={hab.codigo_habitacion} value={hab.codigo_habitacion}>
-                          Hab. {hab.codigo_habitacion} - {hab.nombre_tipo || 'Estándar'} (${hab.precio_base || 120}/noche, Ocupación Base: {hab.ocupacion_base || 2}, Máx. {hab.capacidad} pers.)
+                          Hab. {hab.codigo_habitacion} - {hab.nombre_tipo || 'Estándar'} (Máx. {hab.capacidad} pers.)
                         </option>
                       ))}
                     </select>
@@ -603,7 +697,7 @@ export default function Reservas() {
               </form>
             ) : (
               /* PASO 2: PANTALLA DE CONFIRMACIÓN Y DESGLOSE DE COSTOS */
-              <section className="formulario-huesped">
+              <div className="formulario-huesped">
                 <section style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                   <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', marginBottom: '1rem' }}>Resumen de la Estancia</h3>
 
@@ -616,16 +710,19 @@ export default function Reservas() {
                   <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem' }}>
                     <strong>Fechas:</strong> Del {formDataReserva.fecha_checkin} al {formDataReserva.fecha_checkout} ({finanzasForm.noches} noche(s))
                   </p>
+                  <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem' }}>
+                    <strong>Temporada Aplicada:</strong> <span style={{ color: '#2563eb', fontWeight: 600 }}>{finanzasForm.temporadaAplicadaNombre}</span>
+                  </p>
                   <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '1rem' }}>
                     <strong>Huéspedes:</strong> {formDataReserva.cantidad_huespedes} persona(s)
                   </p>
 
                   <hr style={{ border: '0', borderTop: '1px solid #cbd5e1', margin: '0.75rem 0' }} />
 
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.75rem' }}>Desglose Financiero</h3>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.75rem' }}>Desglose Financiero (Autocompletado)</h3>
 
                   <section style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#64748b' }}>
-                    <span>Tarifa base ({finanzasForm.noches} x {formatUSD(finanzasForm.precioBaseNoche)}):</span>
+                    <span>Tarifa base / noche ({finanzasForm.noches} x {formatUSD(finanzasForm.precioBaseNoche)}):</span>
                     <strong>{formatUSD(finanzasForm.subtotalTarifaBase)}</strong>
                   </section>
 
@@ -669,7 +766,7 @@ export default function Reservas() {
                     {guardando ? 'Guardando...' : 'Confirmar y Registrar Reserva'}
                   </button>
                 </footer>
-              </section>
+              </div>
             )}
           </article>
         </aside>

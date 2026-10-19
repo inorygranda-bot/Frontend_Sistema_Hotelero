@@ -30,7 +30,6 @@ export default function Habitaciones() {
 
   const [formDataHabitacion, setFormDataHabitacion] = useState(estadoInicialFormHabitacion);
 
-  // Estados del modal de formulario de Tipos de Habitación (Crear / Editar)
   const [modalTipoAbierto, setModalTipoAbierto] = useState(false);
   const [modoTipoModal, setModoTipoModal] = useState('CREAR');
   const [tipoSeleccionadoId, setTipoSeleccionadoId] = useState(null);
@@ -38,7 +37,8 @@ export default function Habitaciones() {
   const [erroresTipoForm, setErroresTipoForm] = useState({});
   const estadoInicialFormTipo = {
     nombre_tipo: '',
-    descripcion: ''
+    descripcion: '',
+    precio_base: '100.00'
   };
   const [formDataTipo, setFormDataTipo] = useState(estadoInicialFormTipo);
 
@@ -56,24 +56,14 @@ export default function Habitaciones() {
     textoConfirmar: 'Aceptar'
   });
 
-  // Función helper para obtener el ID de usuario de forma 100% segura
   const obtenerIdUsuarioActual = () => {
     try {
-      // Buscamos primero en 'sesion_activa' que es como guardas la sesión actual
       const sesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
-      
-      // Verificamos si el id_usuario existe directamente
-      if (sesion.id_usuario) {
-        return Number(sesion.id_usuario);
-      }
-      // Si está anidado
-      if (sesion.usuario && sesion.usuario.id_usuario) {
-        return Number(sesion.usuario.id_usuario);
-      }
+      if (sesion.id_usuario) return Number(sesion.id_usuario);
+      if (sesion.usuario && sesion.usuario.id_usuario) return Number(sesion.usuario.id_usuario);
     } catch (e) {
       console.error("Error leyendo localStorage:", e);
     }
-    
     return 1;
   };
 
@@ -285,6 +275,45 @@ export default function Habitaciones() {
     }
   };
 
+  const cambiarEstadoOperativo = async (nuevoEstado) => {
+    if (!habitacionSeleccionada) return;
+
+    const idUsuarioActual = obtenerIdUsuarioActual();
+
+    try {
+      const respuesta = await fetch(`${API_HABITACIONES_URL}/${habitacionSeleccionada.codigo_habitacion}/cambiar-estado`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          estado: nuevoEstado,
+          id_usuario: idUsuarioActual
+        })
+      });
+
+      const resData = await respuesta.json();
+
+      if (!respuesta.ok) {
+        throw new Error(resData.mensaje || 'Error al cambiar el estado.');
+      }
+
+      await cargarDatos();
+      cerrarDetalle();
+      setAlerta({
+        abierto: true,
+        tipo: 'exito',
+        titulo: '¡Estado Actualizado!',
+        mensaje: `Habitación N° ${habitacionSeleccionada.codigo_habitacion} marcada como "${nuevoEstado}".`
+      });
+    } catch (err) {
+      setAlerta({
+        abierto: true,
+        tipo: 'error',
+        titulo: 'Error en la Operación',
+        mensaje: err.message
+      });
+    }
+  };
+
   const abrirModalCrearTipo = () => {
     setFormDataTipo(estadoInicialFormTipo);
     setErroresTipoForm({});
@@ -431,49 +460,11 @@ export default function Habitaciones() {
     setHabitacionSeleccionada(null);
   };
 
-  const ejecutarAccion = async (endpoint, body = {}) => {
-    if (!habitacionSeleccionada) return;
-
-    const idUsuarioActual = obtenerIdUsuarioActual();
-
-    try {
-      const respuesta = await fetch(`${API_HABITACIONES_URL}/${habitacionSeleccionada.codigo_habitacion}/${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...body,
-          id_usuario: idUsuarioActual
-        })
-      });
-
-      if (!respuesta.ok) {
-        const err = await respuesta.json().catch(() => ({}));
-        throw new Error(err.mensaje || 'Error al ejecutar la acción.');
-      }
-
-      await cargarDatos();
-      cerrarDetalle();
-      setAlerta({
-        abierto: true,
-        tipo: 'exito',
-        titulo: '¡Operación Exitosa!',
-        mensaje: `Habitación N° ${habitacionSeleccionada.codigo_habitacion} actualizada.`
-      });
-    } catch (err) {
-      setAlerta({
-        abierto: true,
-        tipo: 'error',
-        titulo: 'Error en la Operación',
-        mensaje: err.message
-      });
-    }
-  };
-
   return (
     <section className="contenedor-habitaciones">
       <header className="encabezado-vista">
         <h1 className="titulo-vista">Gestión de Habitaciones</h1>
-        <p className="subtitulo-vista">Control de estado, tipologías y ocupación hotelera</p>
+        <p className="subtitulo-vista">Control de estado, tipologías y mantenimiento hotelero</p>
       </header>
 
       <nav className="pestañas-navegacion">
@@ -658,6 +649,7 @@ export default function Habitaciones() {
         </article>
       )}
 
+      {/* MODAL CREAR/EDITAR HABITACIÓN */}
       {modalFormAbierto && (
         <aside className="overlay-modal" onClick={cerrarModalFormHabitacion}>
           <article className="contenido-modal" onClick={(e) => e.stopPropagation()}>
@@ -728,12 +720,22 @@ export default function Habitaciones() {
                 </label>
 
                 <label className="campo ancho-completo">
-                  <span className="label-texto">Estado Inicial</span>
-                  <select name="estado" value={formDataHabitacion.estado} onChange={handleChangeHabitacion}>
-                    <option value="Disponible">Disponible</option>
-                    <option value="Ocupada">Ocupada</option>
-                    <option value="Sucia">Sucia</option>
-                    <option value="Fuera de servicio">Fuera de servicio</option>
+                  <span className="label-texto">Estado Operativo</span>
+                  <select
+                    name="estado"
+                    value={formDataHabitacion.estado}
+                    onChange={handleChangeHabitacion}
+                    disabled={formDataHabitacion.estado === 'Ocupada'}
+                  >
+                    {formDataHabitacion.estado === 'Ocupada' ? (
+                      <option value="Ocupada">Ocupada (Gestionada desde Reservas)</option>
+                    ) : (
+                      <>
+                        <option value="Disponible">Disponible</option>
+                        <option value="Sucia">Sucia</option>
+                        <option value="Fuera de servicio">Fuera de servicio</option>
+                      </>
+                    )}
                   </select>
                 </label>
 
@@ -770,68 +772,7 @@ export default function Habitaciones() {
         </aside>
       )}
 
-      {modalTipoAbierto && (
-        <aside className="overlay-modal" onClick={cerrarModalTipo}>
-          <article className="contenido-modal" onClick={(e) => e.stopPropagation()}>
-            <header className="encabezado-modal">
-              <h2 className="titulo-modal">
-                {modoTipoModal === 'CREAR' ? 'Registrar Nuevo Tipo de Habitación' : 'Editar Tipo de Habitación'}
-              </h2>
-              <button type="button" className="boton-cerrar-modal" onClick={cerrarModalTipo}>
-                &times;
-              </button>
-            </header>
-
-            <form onSubmit={handleSubmitTipo} className="formulario-huesped" noValidate>
-              <fieldset className="grupo-campos">
-                <legend className="leyenda-formulario">Detalles de Tipología</legend>
-
-                <label className="campo ancho-completo">
-                  <span className="label-texto">Nombre del Tipo *</span>
-                  <input
-                    type="text"
-                    name="nombre_tipo"
-                    placeholder="Ej. Suite Ejecutiva, Doble Deluxe..."
-                    value={formDataTipo.nombre_tipo}
-                    onChange={handleChangeTipo}
-                    className={erroresTipoForm.nombre_tipo ? 'input-error' : ''}
-                  />
-                  {erroresTipoForm.nombre_tipo && <span className="texto-error-campo">{erroresTipoForm.nombre_tipo}</span>}
-                </label>
-
-                <label className="campo ancho-completo">
-                  <span className="label-texto">Descripción *</span>
-                  <input
-                    type="text"
-                    name="descripcion"
-                    placeholder="Ej. Habitación amplia con vista al mar..."
-                    value={formDataTipo.descripcion}
-                    onChange={handleChangeTipo}
-                    className={erroresTipoForm.descripcion ? 'input-error' : ''}
-                  />
-                  {erroresTipoForm.descripcion && <span className="texto-error-campo">{erroresTipoForm.descripcion}</span>}
-                </label>
-              </fieldset>
-
-              <footer className="acciones-formulario">
-                <button type="button" className="boton-cancelar" onClick={cerrarModalTipo} disabled={guardandoTipo}>
-                  Cancelar
-                </button>
-                <button type="submit" className="boton-guardar" disabled={guardandoTipo}>
-                  {guardandoTipo ? (
-                    <span className="flex-cargando">
-                      <span className="spinner-pequeño"></span> Guardando...
-                    </span>
-                  ) : (
-                    modoTipoModal === 'CREAR' ? 'Guardar Tipo' : 'Actualizar Tipo'
-                  )}
-                </button>
-              </footer>
-            </form>
-          </article>
-        </aside>
-      )}
-
+      {/* MODAL DETALLE DE HABITACIÓN */}
       {modalDetalleAbierto && habitacionSeleccionada && (
         <aside className="overlay-modal" onClick={cerrarDetalle}>
           <article className="contenido-modal modal-detalle" onClick={(e) => e.stopPropagation()}>
@@ -870,14 +811,14 @@ export default function Habitaciones() {
               </section>
 
               <section className="seccion-bloque-detalle">
-                <h3 className="titulo-seccion-detalle">Estado Actual</h3>
+                <h3 className="titulo-seccion-detalle">Estado de Operación</h3>
 
                 {habitacionSeleccionada.estado === 'Disponible' && (
                   <article className="estado-indicador disponible">
                     <span className="icono-estado-circulo">✓</span>
                     <section className="texto-estado-info">
-                      <strong>Disponible y Preparada</strong>
-                      <p>Lista para check-in inmediato de huéspedes.</p>
+                      <strong>Disponible</strong>
+                      <p>Lista para asignación mediante el módulo de Reservas.</p>
                     </section>
                   </article>
                 )}
@@ -902,7 +843,7 @@ export default function Habitaciones() {
                     <span className="icono-estado-circulo">🧹</span>
                     <section className="texto-estado-info">
                       <strong>Pendiente de Limpieza</strong>
-                      <p>Requiere mantenimiento antes de asignarse.</p>
+                      <p>Marcar como "Disponible" una vez aseada.</p>
                     </section>
                   </article>
                 )}
@@ -914,6 +855,42 @@ export default function Habitaciones() {
                       <strong>En Mantenimiento</strong>
                       <p>Bloqueada temporalmente por reparaciones.</p>
                     </section>
+                  </article>
+                )}
+
+                {/* Acciones de cambio rápido de mantenimiento si NO está Ocupada */}
+                {habitacionSeleccionada.estado !== 'Ocupada' && (
+                  <article style={{ marginTop: '1rem' }}>
+                    <span className="label-mini">Cambiar Estado de Mantenimiento:</span>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                      {habitacionSeleccionada.estado !== 'Disponible' && (
+                        <button
+                          type="button"
+                          className="boton-secundario-barra"
+                          onClick={() => cambiarEstadoOperativo('Disponible')}
+                        >
+                          Marcar Disponible
+                        </button>
+                      )}
+                      {habitacionSeleccionada.estado !== 'Sucia' && (
+                        <button
+                          type="button"
+                          className="boton-secundario-barra"
+                          onClick={() => cambiarEstadoOperativo('Sucia')}
+                        >
+                          Marcar Sucia
+                        </button>
+                      )}
+                      {habitacionSeleccionada.estado !== 'Fuera de servicio' && (
+                        <button
+                          type="button"
+                          className="boton-secundario-barra"
+                          onClick={() => cambiarEstadoOperativo('Fuera de servicio')}
+                        >
+                          Marcar Fuera de Servicio
+                        </button>
+                      )}
+                    </div>
                   </article>
                 )}
               </section>
@@ -946,32 +923,93 @@ export default function Habitaciones() {
                 >
                   Editar
                 </button>
-
-                {habitacionSeleccionada.estado === 'Disponible' && (
-                  <button
-                    type="button"
-                    className="boton-agregar"
-                    onClick={() => ejecutarAccion('checkin', { estado: 'Ocupada' })}
-                  >
-                    Check-in
-                  </button>
-                )}
-
-                {habitacionSeleccionada.estado === 'Ocupada' && (
-                  <button
-                    type="button"
-                    className="boton-alerta-reintentar"
-                    onClick={() => ejecutarAccion('checkout', { estado: 'Sucia' })}
-                  >
-                    Check-out
-                  </button>
-                )}
               </nav>
             </footer>
           </article>
         </aside>
       )}
 
+      {/* MODAL CREAR / EDITAR TIPO DE HABITACIÓN */}
+      {modalTipoAbierto && (
+        <aside className="overlay-modal" onClick={cerrarModalTipo}>
+          <article className="contenido-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="encabezado-modal">
+              <h2 className="titulo-modal">
+                {modoTipoModal === 'CREAR' ? 'Registrar Nuevo Tipo de Habitación' : 'Editar Tipo de Habitación'}
+              </h2>
+              <button type="button" className="boton-cerrar-modal" onClick={cerrarModalTipo}>
+                &times;
+              </button>
+            </header>
+
+            <form onSubmit={handleSubmitTipo} className="formulario-huesped" noValidate>
+              <fieldset className="grupo-campos">
+                <legend className="leyenda-formulario">Información y Tarifa Base</legend>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Nombre del Tipo *</span>
+                  <input
+                    type="text"
+                    name="nombre_tipo"
+                    placeholder="Ej. Suite Presidencial, Matrimonial, Doble"
+                    value={formDataTipo.nombre_tipo}
+                    onChange={handleChangeTipo}
+                    className={erroresTipoForm.nombre_tipo ? 'input-error' : ''}
+                  />
+                </label>
+
+                {modoTipoModal === 'CREAR' && (
+                  <label className="campo ancho-completo">
+                    <span className="label-texto">Precio Base Inicial (USD) *</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="precio_base"
+                      placeholder="Ej. 120.00"
+                      value={formDataTipo.precio_base}
+                      onChange={handleChangeTipo}
+                      className="rate-input"
+                    />
+                    <small className="rate-helper-text" style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '4px', display: 'block' }}>
+                      Se creará automáticamente la tarifa comercial para la "Temporada normal".
+                    </small>
+                  </label>
+                )}
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Descripción / Detalles *</span>
+                  <textarea
+                    name="descripcion"
+                    rows="3"
+                    placeholder="Describe las características generales de este tipo de habitación..."
+                    value={formDataTipo.descripcion}
+                    onChange={handleChangeTipo}
+                    className={erroresTipoForm.descripcion ? 'input-error' : ''}
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', resize: 'vertical' }}
+                  />
+                </label>
+              </fieldset>
+
+              <footer className="acciones-formulario">
+                <button type="button" className="boton-cancelar" onClick={cerrarModalTipo} disabled={guardandoTipo}>
+                  Cancelar
+                </button>
+                <button type="submit" className="boton-guardar" disabled={guardandoTipo}>
+                  {guardandoTipo ? (
+                    <span className="flex-cargando">
+                      <span className="spinner-pequeño"></span> Guardando...
+                    </span>
+                  ) : (
+                    modoTipoModal === 'CREAR' ? 'Guardar Tipo y Tarifa' : 'Actualizar Tipo'
+                  )}
+                </button>
+              </footer>
+            </form>
+          </article>
+        </aside>
+      )}
+
+      {/* MODAL ALERTA */}
       {alerta.abierto && (
         <aside className="overlay-modal z-alto">
           <article className="modal-alerta-tarjeta">
