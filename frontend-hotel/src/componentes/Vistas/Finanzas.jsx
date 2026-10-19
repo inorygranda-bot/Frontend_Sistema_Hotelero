@@ -3,14 +3,14 @@ import '../../estilos/huespedes.css';
 import '../../estilos/habitaciones.css';
 
 const API_RECARGOS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/recargos';
-const API_PAGOS_URL = 'http://localhost:3000/api/pagos';
-const API_RESERVAS_URL = 'http://localhost:3000/api/reservas';
-const API_TASA_BCV_URL = 'http://localhost:3000/api/tarifas/tasa-bcv';
+const API_PAGOS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/pagos';
+const API_RESERVAS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/reservas';
+const API_BANCOS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/bancos';
+const API_TASA_BCV_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/tarifas/tasa-bcv';
 
 export default function Finanzas({ usuario }) {
-    const [pestannaActiva, setPestannaActiva] = useState('RECARGOS'); // 'RECARGOS' o 'PAGOS'
+    const [pestannaActiva, setPestannaActiva] = useState('RECARGOS'); // 'RECARGOS', 'PAGOS' o 'BANCOS'
 
-    // --- TASA OFICIAL BCV ---
     const [bcvRate, setBcvRate] = useState(872.39);
 
     // --- ESTADOS DE RECARGOS ---
@@ -24,14 +24,14 @@ export default function Finanzas({ usuario }) {
     const [guardandoRecargo, setGuardandoRecargo] = useState(false);
     const [erroresRecargo, setErroresRecargo] = useState({});
 
-    const estadoInicialRecargo = {
-        id_recargo: null,
-        motivo_recargo: '',
-        tipo_operacion: 'Porcentaje',
-        tipo_calculo: 'Suma',
-        monto: ''
-    };
+    const estadoInicialRecargo = { id_recargo: null, motivo_recargo: '', tipo_operacion: 'Porcentaje', tipo_calculo: 'Suma', monto: '' };
     const [formDataRecargo, setFormDataRecargo] = useState(estadoInicialRecargo);
+
+    // --- ESTADOS DE BANCOS ---
+    const [bancos, setBancos] = useState([]);
+    const [modalBancoAbierto, setModalBancoAbierto] = useState(false);
+    const [nombreNuevoBanco, setNombreNuevoBanco] = useState('');
+    const [errorBanco, setErrorBanco] = useState('');
 
     // --- ESTADOS DE PAGOS Y RESERVAS ---
     const [reservas, setReservas] = useState([]);
@@ -45,224 +45,129 @@ export default function Finanzas({ usuario }) {
 
     const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
     const [guardandoPago, setGuardandoPago] = useState(false);
-    const [erroresPago, setErroresPago] = useState({});
 
     const estadoInicialPago = {
         codigo_reserva: '',
-        metodo_pago: 'Efectivo',
+        metodo_pago: 'Transferencia Bancaria',
         moneda: 'USD',
         monto: '',
-        banco_destino: '',
+        id_banco_destino: '',
         num_referencia: '',
         descripcion: ''
     };
     const [formDataPago, setFormDataPago] = useState(estadoInicialPago);
-
     const [modalHistorialAbierto, setModalHistorialAbierto] = useState(false);
     const [reservaSeleccionadaHistorial, setReservaSeleccionadaHistorial] = useState(null);
 
-    const [alerta, setAlerta] = useState({
-        abierto: false,
-        tipo: 'exito',
-        titulo: '',
-        mensaje: '',
-        accionConfirmar: null,
-        textoConfirmar: 'Aceptar'
-    });
+    const [alerta, setAlerta] = useState({ abierto: false, tipo: 'exito', titulo: '', mensaje: '', accionConfirmar: null });
 
-    const cargarTasaBcv = async () => {
+    const cargarDatosGenerales = async () => {
         try {
-            let respuesta = await fetch(API_TASA_BCV_URL).catch(() => null);
-            if (!respuesta || !respuesta.ok) {
-                respuesta = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
-            }
-            if (respuesta && respuesta.ok) {
-                const datos = await respuesta.json();
-                const tasaReal = parseFloat(datos.tasa || datos.promedio);
-                if (tasaReal && !isNaN(tasaReal)) {
-                    setBcvRate(tasaReal);
-                }
-            }
-        } catch (err) {
-            console.warn('No se pudo actualizar la tasa BCV:', err);
-        }
-    };
-
-    const cargarRecargos = async () => {
-        try {
-            setLoadingRecargos(true);
-            setErrorRecargos(null);
-            const respuesta = await fetch(API_RECARGOS_URL);
-            if (!respuesta.ok) throw new Error('No se pudo obtener la lista de recargos.');
-            const datos = await respuesta.json();
-            setRecargos(Array.isArray(datos) ? datos : []);
-        } catch (err) {
-            setErrorRecargos(err.message || 'Error al conectar con el servidor.');
-        } finally {
-            setLoadingRecargos(false);
-        }
-    };
-
-    const cargarPagosYReservas = async () => {
-        try {
-            setLoadingPagos(true);
-            setErrorPagos(null);
-
-            const [respReservas, respPagos] = await Promise.all([
+            const [respRecargos, respReservas, respPagos, respBancos, respBcv] = await Promise.all([
+                fetch(API_RECARGOS_URL).catch(() => ({ ok: false })),
                 fetch(API_RESERVAS_URL).catch(() => ({ ok: false })),
-                fetch(API_PAGOS_URL).catch(() => ({ ok: false }))
+                fetch(API_PAGOS_URL).catch(() => ({ ok: false })),
+                fetch(API_BANCOS_URL).catch(() => ({ ok: false })),
+                fetch(API_TASA_BCV_URL).catch(() => null)
             ]);
 
-            if (respReservas.ok) {
-                const datosReservas = await respReservas.json();
-                setReservas(Array.isArray(datosReservas) ? datosReservas : []);
-            } else {
-                setReservas([]);
-            }
+            if (respRecargos.ok) setRecargos(await respRecargos.json());
+            if (respReservas.ok) setReservas(await respReservas.json());
+            if (respPagos.ok) setPagos(await respPagos.json());
+            if (respBancos.ok) setBancos(await respBancos.json());
 
-            if (respPagos.ok) {
-                const datosPagos = await respPagos.json();
-                setPagos(Array.isArray(datosPagos) ? datosPagos : []);
-            } else {
-                setPagos([]);
+            if (respBcv && respBcv.ok) {
+                const dataBcv = await respBcv.json();
+                if (dataBcv.tasa) setBcvRate(parseFloat(dataBcv.tasa));
             }
         } catch (err) {
-            setErrorPagos('Error al cargar la información financiera de reservas.');
+            console.error('Error al cargar finanzas:', err);
         } finally {
+            setLoadingRecargos(false);
             setLoadingPagos(false);
         }
     };
 
     useEffect(() => {
-        cargarRecargos();
-        cargarPagosYReservas();
-        cargarTasaBcv();
+        cargarDatosGenerales();
     }, []);
 
-    // Cálculo preciso del monto total de la reserva basado en noches y precio base
     const calcularMontoTotal = (res) => {
         if (res.monto_total) return Number(res.monto_total);
-        if (!res.fecha_checkin || !res.fecha_checkout) return Number(res.precio_base || 150.00);
-        
-        const checkin = new Date(res.fecha_checkin);
-        const checkout = new Date(res.fecha_checkout);
-        const diffTime = checkout - checkin;
-        const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+        const diffDays = Math.max(1, Math.ceil((new Date(res.fecha_checkout) - new Date(res.fecha_checkin)) / (1000 * 60 * 60 * 24)));
         const precioBase = Number(res.precio_base || 150.00);
-        const ivaPorc = Number(res.iva || 16);
-
-        const subtotal = diffDays * precioBase;
-        const iva = subtotal * (ivaPorc / 100);
-        return subtotal + iva;
+        return (diffDays * precioBase) * 1.16;
     };
 
     const obtenerEstadoPago = (montoPagado, montoTotal) => {
-        const pagadoCentavos = Math.round(Number(montoPagado) * 100);
-        const totalCentavos = Math.round(Number(montoTotal) * 100);
-
-        if (pagadoCentavos <= 0) return 'Pendiente';
-        if (pagadoCentavos >= totalCentavos) return 'Pagado';
+        const pagadoCent = Math.round(Number(montoPagado) * 100);
+        const totalCent = Math.round(Number(montoTotal) * 100);
+        if (pagadoCent <= 0) return 'Pendiente';
+        if (pagadoCent >= totalCent) return 'Pagado';
         return 'Parcial';
     };
 
-    // --- VALIDACIONES RECARGO ---
-    const validarCampoRecargo = (name, value) => {
-        let error = '';
-        if (name === 'motivo_recargo' && !value.trim()) error = 'El motivo del recargo es obligatorio.';
-        if (name === 'monto') {
-            if (value === '' || value === null) error = 'El monto o valor es obligatorio.';
-            else if (isNaN(value) || Number(value) < 0) error = 'Debe ingresar un número válido.';
-        }
-        return error;
-    };
-
-    const handleChangeRecargo = (e) => {
-        const { name, value } = e.target;
-        setFormDataRecargo((prev) => ({ ...prev, [name]: value }));
-        const errorMensaje = validarCampoRecargo(name, value);
-        setErroresRecargo((prev) => ({ ...prev, [name]: errorMensaje }));
-    };
-
-    const abrirModalCrearRecargo = () => {
-        setFormDataRecargo(estadoInicialRecargo);
-        setErroresRecargo({});
-        setModoRecargo('CREAR');
-        setModalRecargoAbierto(true);
-    };
-
-    const abrirModalEditarRecargo = (recargo) => {
-        setFormDataRecargo({
-            id_recargo: recargo.id_recargo,
-            motivo_recargo: recargo.motivo_recargo || '',
-            tipo_operacion: recargo.tipo_operacion || 'Porcentaje',
-            tipo_calculo: recargo.tipo_calculo || 'Suma',
-            monto: recargo.monto !== undefined ? recargo.monto : ''
-        });
-        setErroresRecargo({});
-        setModoRecargo('EDITAR');
-        setModalRecargoAbierto(true);
-    };
-
-    const cerrarModalRecargo = () => {
-        if (guardandoRecargo) return;
-        setModalRecargoAbierto(false);
-        setFormDataRecargo(estadoInicialRecargo);
-        setErroresRecargo({});
-    };
-
-    const handleSubmitRecargo = async (e) => {
+    // --- GESTIÓN DE BANCOS ---
+    const handleCrearBanco = async (e) => {
         e.preventDefault();
-        const erroresTemp = {};
-        Object.keys(formDataRecargo).forEach((key) => {
-            const err = validarCampoRecargo(key, formDataRecargo[key]);
-            if (err) erroresTemp[key] = err;
-        });
-
-        if (Object.keys(erroresTemp).length > 0) {
-            setErroresRecargo(erroresTemp);
+        if (!nombreNuevoBanco.trim()) {
+            setErrorBanco('El nombre del banco es obligatorio.');
             return;
         }
+        try {
+            const idUsuarioActual = usuario?.id_usuario || 1;
+            const resp = await fetch(API_BANCOS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nombre_banco: nombreNuevoBanco, id_usuario: idUsuarioActual })
+            });
+            if (!resp.ok) throw new Error('No se pudo registrar el banco.');
+            setNombreNuevoBanco('');
+            setErrorBanco('');
+            setModalBancoAbierto(false);
+            cargarDatosGenerales();
+            setAlerta({ abierto: true, tipo: 'exito', titulo: 'Banco Registrado', mensaje: 'El banco fue agregado al catálogo.' });
+        } catch (err) {
+            setErrorBanco(err.message);
+        }
+    };
 
+    const solicitarEliminarBanco = (id, nombre) => {
+        setAlerta({
+            abierto: true,
+            tipo: 'confirmar',
+            titulo: 'Eliminar Banco',
+            mensaje: `¿Desea eliminar el banco "${nombre}"?`,
+            accionConfirmar: async () => {
+                const idUsuarioActual = usuario?.id_usuario || 1;
+                await fetch(`${API_BANCOS_URL}/${id}?id_usuario=${idUsuarioActual}`, { method: 'DELETE' });
+                cargarDatosGenerales();
+                setAlerta({ abierto: true, tipo: 'exito', titulo: 'Banco Eliminado', mensaje: 'El banco fue eliminado con éxito.' });
+            }
+        });
+    };
+
+    // --- GESTIÓN DE RECARGOS (CORREGIDA) ---
+    const handleSubmitRecargo = async (e) => {
+        e.preventDefault();
         setGuardandoRecargo(true);
-        const esCrear = modoRecargo === 'CREAR';
-        const url = esCrear ? API_RECARGOS_URL : `${API_RECARGOS_URL}/${formDataRecargo.id_recargo}`;
-        const metodo = esCrear ? 'POST' : 'PUT';
-        const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
-        const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+        const idUsuarioActual = usuario?.id_usuario || 1;
+        const url = modoRecargo === 'CREAR' ? API_RECARGOS_URL : `${API_RECARGOS_URL}/${formDataRecargo.id_recargo}`;
+        const metodo = modoRecargo === 'CREAR' ? 'POST' : 'PUT';
 
         try {
-
-            const payload = {
-                ...formDataRecargo,
-                id_usuario: idUsuarioActual 
-            };
-
-            const respuesta = await fetch(url, {
+            const resp = await fetch(url, {
                 method: metodo,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ ...formDataRecargo, id_usuario: idUsuarioActual })
             });
+            if (!resp.ok) throw new Error('No se pudo guardar el recargo.');
 
-            if (!respuesta.ok) {
-                const errData = await respuesta.json().catch(() => ({}));
-                throw new Error(errData.mensaje || 'Fallo al procesar el recargo.');
-            }
-
-            cerrarModalRecargo();
-            cargarRecargos();
-            setAlerta({
-                abierto: true,
-                tipo: 'exito',
-                titulo: esCrear ? '¡Recargo Registrado!' : '¡Datos Actualizados!',
-                mensaje: 'La operación se completó correctamente.'
-            });
+            setModalRecargoAbierto(false);
+            cargarDatosGenerales();
+            setAlerta({ abierto: true, tipo: 'exito', titulo: 'Operación Exitosa', mensaje: 'El recargo fue guardado correctamente.' });
         } catch (err) {
-            setAlerta({
-                abierto: true,
-                tipo: 'error',
-                titulo: 'Error al Procesar Recargo',
-                mensaje: err.message
-            });
+            setAlerta({ abierto: true, tipo: 'error', titulo: 'Error', mensaje: err.message });
         } finally {
             setGuardandoRecargo(false);
         }
@@ -272,201 +177,82 @@ export default function Finanzas({ usuario }) {
         setAlerta({
             abierto: true,
             tipo: 'confirmar',
-            titulo: 'Confirmar Eliminación',
-            mensaje: `¿Está seguro de eliminar el recargo "${motivo}"?`,
-            textoConfirmar: 'Sí, Eliminar',
-            accionConfirmar: () => ejecutarEliminacionRecargo(id)
+            titulo: 'Eliminar Recargo',
+            mensaje: `¿Desea eliminar el recargo "${motivo}"?`,
+            accionConfirmar: async () => {
+                const idUsuarioActual = usuario?.id_usuario || 1;
+                const resp = await fetch(`${API_RECARGOS_URL}/${id}?id_usuario=${idUsuarioActual}`, { method: 'DELETE' });
+                if (resp.ok) {
+                    cargarDatosGenerales();
+                    setAlerta({ abierto: true, tipo: 'exito', titulo: 'Recargo Eliminado', mensaje: 'El recargo fue eliminado.' });
+                }
+            }
         });
     };
 
-    const ejecutarEliminacionRecargo = async (id) => {
-        // 👇 OBTENER SESIÓN ACTIVA
-        const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
-        const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
-
-        try {
-            const respuesta = await fetch(`${API_RECARGOS_URL}/${id}?id_usuario=${idUsuarioActual}`, { 
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            if (!respuesta.ok) throw new Error('No se pudo eliminar el recargo.');
-            cargarRecargos();
-            setAlerta({
-                abierto: true,
-                tipo: 'exito',
-                titulo: '¡Registro Eliminado!',
-                mensaje: 'El recargo ha sido eliminado correctamente.'
-            });
-        } catch (err) {
-            setAlerta({
-                abierto: true,
-                tipo: 'error',
-                titulo: 'Error al Eliminar',
-                mensaje: err.message
-            });
+    // --- GESTIÓN DE PAGOS ---
+    const handlePagarTodaLaDeuda = () => {
+        if (!formDataPago.codigo_reserva) {
+            setAlerta({ abierto: true, tipo: 'error', titulo: 'Seleccione Reserva', mensaje: 'Debe seleccionar una reserva primero.' });
+            return;
         }
-    };
+        const reservaSel = reservas.find(r => Number(r.codigo_reserva) === Number(formDataPago.codigo_reserva));
+        if (!reservaSel) return;
 
-    // --- VALIDACIONES PAGO ---
-    const validarCampoPago = (name, value) => {
-        let error = '';
-        if (name === 'codigo_reserva' && !value) error = 'Debe seleccionar una reserva.';
-        if (name === 'monto') {
-            if (value === '' || value === null) error = 'El monto del pago es obligatorio.';
-            else if (isNaN(value) || Number(value) <= 0) error = 'Debe ingresar un monto válido mayor a 0.';
-        }
-        if (name === 'metodo_pago' && !value) error = 'Seleccione el método de pago.';
-        return error;
-    };
+        const totalPagado = pagos.filter(p => Number(p.codigo_reserva) === Number(reservaSel.codigo_reserva)).reduce((s, p) => s + (p.moneda === 'VES' ? Number(p.monto) / bcvRate : Number(p.monto)), 0);
+        const montoTotal = calcularMontoTotal(reservaSel);
+        const saldoPendiente = Math.max(0, montoTotal - totalPagado);
 
-    const handleChangePago = (e) => {
-        const { name, value } = e.target;
-        setFormDataPago((prev) => ({ ...prev, [name]: value }));
-        const errorMensaje = validarCampoPago(name, value);
-        setErroresPago((prev) => ({ ...prev, [name]: errorMensaje }));
-    };
-
-    const abrirModalRegistrarPago = () => {
-        setFormDataPago(estadoInicialPago);
-        setErroresPago({});
-        setModalPagoAbierto(true);
-    };
-
-    const cerrarModalPago = () => {
-        if (guardandoPago) return;
-        setModalPagoAbierto(false);
-        setFormDataPago(estadoInicialPago);
-        setErroresPago({});
+        setFormDataPago(prev => ({
+            ...prev,
+            monto: saldoPendiente.toFixed(2),
+            moneda: 'USD'
+        }));
     };
 
     const handleSubmitPago = async (e) => {
         e.preventDefault();
-        const erroresTemp = {};
-        Object.keys(formDataPago).forEach((key) => {
-            const err = validarCampoPago(key, formDataPago[key]);
-            if (err) erroresTemp[key] = err;
-        });
-
-        if (Object.keys(erroresTemp).length > 0) {
-            setErroresPago(erroresTemp);
-            return;
-        }
-
         setGuardandoPago(true);
-
-        // 👇 OBTENER SESIÓN ACTIVA
-        const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
-        const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
-
-        const payload = {
-            ...formDataPago,
-            id_usuario: idUsuarioActual, // <-- Enviamos el usuario responsable real en lugar de prop fija
-            tasa_bcv: bcvRate
-        };
+        const idUsuarioActual = usuario?.id_usuario || 1;
 
         try {
-            const respuesta = await fetch(API_PAGOS_URL, {
+            const resp = await fetch(API_PAGOS_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ ...formDataPago, id_usuario: idUsuarioActual, tasa_bcv: bcvRate })
             });
 
-            if (!respuesta.ok) {
-                const errData = await respuesta.json().catch(() => ({}));
-                throw new Error(errData.mensaje || 'No se pudo registrar el pago en la base de datos.');
+            if (!resp.ok) {
+                const err = await resp.json();
+                throw new Error(err.mensaje || 'No se pudo registrar el pago.');
             }
 
-            cerrarModalPago();
-            cargarPagosYReservas();
-            setAlerta({
-                abierto: true,
-                tipo: 'exito',
-                titulo: '¡Pago Registrado Exitosamente!',
-                mensaje: 'El pago se asoció correctamente y se recalculó el saldo.'
-            });
+            setModalPagoAbierto(false);
+            cargarDatosGenerales();
+            setAlerta({ abierto: true, tipo: 'exito', titulo: 'Pago Exitoso', mensaje: 'El pago se registró y asoció correctamente a la reserva.' });
         } catch (err) {
-            setAlerta({
-                abierto: true,
-                tipo: 'error',
-                titulo: 'Error al Registrar Pago',
-                mensaje: err.message
-            });
+            setAlerta({ abierto: true, tipo: 'error', titulo: 'Error al Registrar Pago', mensaje: err.message });
         } finally {
             setGuardandoPago(false);
         }
     };
 
-    const abrirHistorialPagos = (reserva) => {
-        setReservaSeleccionadaHistorial(reserva);
-        setModalHistorialAbierto(true);
-    };
-
-    const cerrarHistorialPagos = () => {
-        setModalHistorialAbierto(false);
-        setReservaSeleccionadaHistorial(null);
-    };
-
-    // --- FILTRADOS ---
-    const recargosFiltrados = recargos.filter((r) => {
-        const coincideBusqueda = r.motivo_recargo?.toLowerCase().includes(busquedaRecargo.toLowerCase());
-        const coincideCalculo = filtroCalculo === 'TODOS' || r.tipo_calculo === filtroCalculo;
-        return coincideBusqueda && coincideCalculo;
-    });
-
-    const reservasFiltradas = reservas.filter((res) => {
-        const coincideBusqueda =
-            res.codigo_reserva?.toString().includes(busquedaPago.trim()) ||
-            res.nombre_huesped?.toLowerCase().includes(busquedaPago.toLowerCase()) ||
-            res.codigo_habitacion?.toString().includes(busquedaPago.trim());
-
-        const totalPagadoReal = pagos
-            .filter((p) => Number(p.codigo_reserva) === Number(res.codigo_reserva))
-            .reduce((suma, p) => {
-                const m = Number(p.monto || 0);
-                return suma + (p.moneda?.toUpperCase() === 'VES' ? m / bcvRate : m);
-            }, 0);
-
-        const montoTotal = calcularMontoTotal(res);
-        const estadoPago = obtenerEstadoPago(totalPagadoReal, montoTotal);
-
-        const coincideEstadoPago =
-            filtroEstadoPago === 'TODOS' || estadoPago === filtroEstadoPago;
-
-        const coincideEstadoReserva =
-            filtroEstadoReserva === 'TODAS' ||
-            res.estado?.toUpperCase() === filtroEstadoReserva.toUpperCase();
-
-        return coincideBusqueda && coincideEstadoPago && coincideEstadoReserva;
-    });
-
-    const montoNum = parseFloat(formDataPago.monto) || 0;
-    const equivalenteCalculado =
-        formDataPago.moneda === 'VES'
-            ? `Equivalente en deuda USD: $ ${(montoNum / (bcvRate || 1)).toFixed(2)} (Tasa BCV: ${bcvRate.toFixed(2)} Bs)`
-            : `Equivalente estimado: Bs ${(montoNum * bcvRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
     return (
         <section className="contenedor-huespedes">
             <header className="encabezado-vista">
                 <h1 className="titulo-vista">Módulo de Finanzas</h1>
-                <p className="subtitulo-vista">Gestión de recargos, descuentos y pagos asociados a reservas</p>
+                <p className="subtitulo-vista">Gestión unificada de recargos, transacciones de pago y bancos autorizados</p>
             </header>
 
-            {/* Pestañas de Navegación */}
             <nav className="pestañas-navegacion">
-                <button
-                    type="button"
-                    className={`boton-pestanna ${pestannaActiva === 'RECARGOS' ? 'activa' : ''}`}
-                    onClick={() => setPestannaActiva('RECARGOS')}
-                >
+                <button type="button" className={`boton-pestanna ${pestannaActiva === 'RECARGOS' ? 'activa' : ''}`} onClick={() => setPestannaActiva('RECARGOS')}>
                     Recargos y Descuentos
                 </button>
-                <button
-                    type="button"
-                    className={`boton-pestanna ${pestannaActiva === 'PAGOS' ? 'activa' : ''}`}
-                    onClick={() => setPestannaActiva('PAGOS')}
-                >
-                    Pagos y Avances de Reservas
+                <button type="button" className={`boton-pestanna ${pestannaActiva === 'PAGOS' ? 'activa' : ''}`} onClick={() => setPestannaActiva('PAGOS')}>
+                    Pagos y Transacciones
+                </button>
+                <button type="button" className={`boton-pestanna ${pestannaActiva === 'BANCOS' ? 'activa' : ''}`} onClick={() => setPestannaActiva('BANCOS')}>
+                    Bancos Autorizados
                 </button>
             </nav>
 
@@ -483,95 +269,48 @@ export default function Finanzas({ usuario }) {
                                 <input
                                     type="search"
                                     className="input-busqueda"
-                                    placeholder="Buscar por motivo de recargo..."
+                                    placeholder="Buscar recargo..."
                                     value={busquedaRecargo}
                                     onChange={(e) => setBusquedaRecargo(e.target.value)}
                                 />
                             </label>
-
-                            <label className="caja-filtro">
-                                <select
-                                    className="select-filtro"
-                                    value={filtroCalculo}
-                                    onChange={(e) => setFiltroCalculo(e.target.value)}
-                                >
-                                    <option value="TODOS">Cálculo: Todos</option>
-                                    <option value="Suma">Suma (+)</option>
-                                    <option value="Resta">Resta (-)</option>
-                                </select>
-                            </label>
                         </section>
-
-                        <button type="button" className="boton-agregar" onClick={abrirModalCrearRecargo}>
+                        <button type="button" className="boton-agregar" onClick={() => { setFormDataRecargo(estadoInicialRecargo); setModoRecargo('CREAR'); setModalRecargoAbierto(true); }}>
                             <span>+ Nuevo Recargo</span>
                         </button>
                     </section>
 
-                    {loadingRecargos ? (
-                        <article className="caja-cargando">
-                            <span className="spinner"></span>
-                            <p>Cargando recargos...</p>
-                        </article>
-                    ) : errorRecargos ? (
-                        <aside className="mensaje-error">
-                            <p>⚠️ {errorRecargos}</p>
-                            <button onClick={cargarRecargos} className="boton-reintentar-tabla">Reintentar</button>
-                        </aside>
-                    ) : (
-                        <article className="tarjeta-tabla">
-                            <table className="tabla-huespedes">
-                                <thead>
-                                    <tr>
-                                        <th>Motivo del Recargo</th>
-                                        <th>Tipo de Operación</th>
-                                        <th>Monto / Valor</th>
-                                        <th>Tipo de Cálculo</th>
-                                        <th className="texto-derecha">Acciones</th>
+                    <article className="tarjeta-tabla">
+                        <table className="tabla-huespedes">
+                            <thead>
+                                <tr>
+                                    <th>Motivo</th>
+                                    <th>Operación</th>
+                                    <th>Valor</th>
+                                    <th>Cálculo</th>
+                                    <th className="texto-derecha">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {recargos.filter(r => r.motivo_recargo.toLowerCase().includes(busquedaRecargo.toLowerCase())).map(r => (
+                                    <tr key={r.id_recargo}>
+                                        <td><strong>{r.motivo_recargo}</strong></td>
+                                        <td>{r.tipo_operacion}</td>
+                                        <td>{r.tipo_operacion === 'Porcentaje' ? `${r.monto}%` : `$${Number(r.monto).toFixed(2)}`}</td>
+                                        <td>{r.tipo_calculo}</td>
+                                        <td className="texto-derecha">
+                                            <button type="button" className="boton-accion" title="Editar" onClick={() => { setFormDataRecargo(r); setModoRecargo('EDITAR'); setModalRecargoAbierto(true); }}>✏️</button>
+                                            <button type="button" className="boton-accion peligro" title="Eliminar" onClick={() => solicitarEliminarRecargo(r.id_recargo, r.motivo_recargo)}>🗑️</button>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    {recargosFiltrados.length > 0 ? (
-                                        recargosFiltrados.map((r) => (
-                                            <tr key={r.id_recargo}>
-                                                <td>
-                                                    <article className="info-persona">
-                                                        <span className="nombre-persona">{r.motivo_recargo}</span>
-                                                    </article>
-                                                </td>
-                                                <td>
-                                                    <span className="badge-documento">{r.tipo_operacion}</span>
-                                                </td>
-                                                <td>
-                                                    <span className="texto-telefono">
-                                                        {r.tipo_operacion === 'Porcentaje' ? `${r.monto}%` : `$${Number(r.monto).toFixed(2)}`}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span className={`badge-estado ${r.tipo_calculo === 'Suma' ? 'badge-disponible' : 'badge-fuera-de-servicio'}`}>
-                                                        {r.tipo_calculo === 'Suma' ? '➕ Suma' : '➖ Resta'}
-                                                    </span>
-                                                </td>
-                                                <td className="texto-derecha">
-                                                    <section className="grupo-acciones">
-                                                        <button type="button" className="boton-accion" title="Editar" onClick={() => abrirModalEditarRecargo(r)}>✏️</button>
-                                                        <button type="button" className="boton-accion peligro" title="Eliminar" onClick={() => solicitarEliminarRecargo(r.id_recargo, r.motivo_recargo)}>🗑️</button>
-                                                    </section>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="5" className="tabla-vacia">No se encontraron recargos registrados.</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </article>
-                    )}
+                                ))}
+                            </tbody>
+                        </table>
+                    </article>
                 </section>
             )}
 
-            {/* VISTA 2: PAGOS Y AVANCES DE RESERVAS */}
+            {/* VISTA 2: PAGOS */}
             {pestannaActiva === 'PAGOS' && (
                 <section className="contenedor-huespedes">
                     <section className="barra-herramientas">
@@ -584,393 +323,347 @@ export default function Finanzas({ usuario }) {
                                 <input
                                     type="search"
                                     className="input-busqueda"
-                                    placeholder="Buscar N° reserva, huésped o hab..."
+                                    placeholder="Buscar reserva o huésped..."
                                     value={busquedaPago}
                                     onChange={(e) => setBusquedaPago(e.target.value)}
                                 />
                             </label>
-
-                            <label className="caja-filtro">
-                                <select
-                                    className="select-filtro"
-                                    value={filtroEstadoPago}
-                                    onChange={(e) => setFiltroEstadoPago(e.target.value)}
-                                >
-                                    <option value="TODOS">Pago: Todos</option>
-                                    <option value="Pendiente">Pendiente ($0)</option>
-                                    <option value="Parcial">Abonado (Parcial)</option>
-                                    <option value="Pagado">Completado (Pagado)</option>
-                                </select>
-                            </label>
-
-                            <label className="caja-filtro">
-                                <select
-                                    className="select-filtro"
-                                    value={filtroEstadoReserva}
-                                    onChange={(e) => setFiltroEstadoReserva(e.target.value)}
-                                >
-                                    <option value="TODAS">Reserva: Todas</option>
-                                    <option value="PENDIENTE">Pendiente</option>
-                                    <option value="CONFIRMADA">Confirmada</option>
-                                    <option value="CHECKIN">Check-in</option>
-                                    <option value="CHECKOUT">Check-out</option>
-                                    <option value="CANCELADA">Cancelada</option>
-                                </select>
-                            </label>
                         </section>
-
-                        <button type="button" className="boton-agregar" onClick={abrirModalRegistrarPago}>
+                        <button type="button" className="boton-agregar" onClick={() => { setFormDataPago(estadoInicialPago); setModalPagoAbierto(true); }}>
                             <span>+ Registrar Pago</span>
                         </button>
                     </section>
 
-                    {loadingPagos ? (
-                        <article className="caja-cargando">
-                            <span className="spinner"></span>
-                            <p>Cargando información de pagos y reservas...</p>
-                        </article>
-                    ) : errorPagos ? (
-                        <aside className="mensaje-error">
-                            <p>⚠️ {errorPagos}</p>
-                            <button onClick={cargarPagosYReservas} className="boton-reintentar-tabla">Reintentar</button>
-                        </aside>
-                    ) : (
-                        <article className="tarjeta-tabla">
-                            <table className="tabla-huespedes">
-                                <thead>
-                                    <tr>
-                                        <th>N° Reserva</th>
-                                        <th>Huésped</th>
-                                        <th>Habitación</th>
-                                        <th>Monto Total</th>
-                                        <th>Monto Pagado</th>
-                                        <th>Saldo Pendiente</th>
-                                        <th>Estado de Pago</th>
-                                        <th className="texto-derecha">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {reservasFiltradas.length > 0 ? (
-                                        reservasFiltradas.map((res) => {
-                                            const totalPagadoReal = pagos
-                                                .filter((p) => Number(p.codigo_reserva) === Number(res.codigo_reserva))
-                                                .reduce((suma, p) => {
-                                                    const m = Number(p.monto || 0);
-                                                    return suma + (p.moneda?.toUpperCase() === 'VES' ? m / bcvRate : m);
-                                                }, 0);
+                    <article className="tarjeta-tabla">
+                        <table className="tabla-huespedes">
+                            <thead>
+                                <tr>
+                                    <th>Reserva</th>
+                                    <th>Huésped</th>
+                                    <th>Total</th>
+                                    <th>Pagado</th>
+                                    <th>Saldo Pendiente</th>
+                                    <th>Estado</th>
+                                    <th className="texto-derecha">Historial</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {reservas.map(res => {
+                                    const totalPagado = pagos.filter(p => Number(p.codigo_reserva) === Number(res.codigo_reserva)).reduce((s, p) => s + (p.moneda === 'VES' ? Number(p.monto) / bcvRate : Number(p.monto)), 0);
+                                    const montoTotal = calcularMontoTotal(res);
+                                    const saldo = Math.max(0, montoTotal - totalPagado);
+                                    const estado = obtenerEstadoPago(totalPagado, montoTotal);
 
-                                            const montoTotal = calcularMontoTotal(res);
-                                            const montoPagado = totalPagadoReal;
-                                            const saldoPendiente = Math.max(0, montoTotal - montoPagado);
-                                            const saldoFinal = saldoPendiente < 0.01 ? 0 : saldoPendiente;
-                                            const estadoPago = obtenerEstadoPago(montoPagado, montoTotal);
-
-                                            return (
-                                                <tr key={res.codigo_reserva}>
-                                                    <td>
-                                                        <strong>N° {res.codigo_reserva}</strong>
-                                                    </td>
-                                                    <td>
-                                                        <article className="info-persona">
-                                                            <span className="nombre-persona">{res.nombre_huesped || 'Huésped N° ' + res.id_huesped}</span>
-                                                            <small className="correo-persona">{res.correo || ''}</small>
-                                                        </article>
-                                                    </td>
-                                                    <td>
-                                                        <span className="badge-documento">Hab. {res.codigo_habitacion}</span>
-                                                    </td>
-                                                    <td>
-                                                        <strong className="texto-telefono">${montoTotal.toFixed(2)}</strong>
-                                                    </td>
-                                                    <td>
-                                                        <strong className="texto-telefono badge-disponible">${montoPagado.toFixed(2)}</strong>
-                                                    </td>
-                                                    <td>
-                                                        <strong className={`texto-telefono ${saldoFinal === 0 ? 'badge-disponible' : 'badge-sucia'}`}>
-                                                            ${saldoFinal.toFixed(2)}
-                                                        </strong>
-                                                    </td>
-                                                    <td>
-                                                        <span className={`badge-estado ${estadoPago === 'Pagado' ? 'badge-disponible' : estadoPago === 'Parcial' ? 'badge-sucia' : 'badge-fuera-de-servicio'}`}>
-                                                            {estadoPago}
-                                                        </span>
-                                                    </td>
-                                                    <td className="texto-derecha">
-                                                        <section className="grupo-acciones">
-                                                            <button
-                                                                type="button"
-                                                                className="boton-ver-detalles"
-                                                                onClick={() => abrirHistorialPagos(res)}
-                                                            >
-                                                                Ver Avances
-                                                            </button>
-                                                        </section>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="8" className="tabla-vacia">No se encontraron reservas con los filtros seleccionados.</td>
+                                    return (
+                                        <tr key={res.codigo_reserva}>
+                                            <td>N° {res.codigo_reserva}</td>
+                                            <td>{res.nombre_huesped}</td>
+                                            <td>${montoTotal.toFixed(2)}</td>
+                                            <td>${totalPagado.toFixed(2)}</td>
+                                            <td>${saldo.toFixed(2)}</td>
+                                            <td><span className={`badge-estado ${estado === 'Pagado' ? 'badge-disponible' : 'badge-sucia'}`}>{estado}</span></td>
+                                            <td className="texto-derecha">
+                                                <button type="button" className="boton-ver-detalles" onClick={() => { setReservaSeleccionadaHistorial(res); setModalHistorialAbierto(true); }}>Ver Pagos</button>
+                                            </td>
                                         </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </article>
-                    )}
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </article>
                 </section>
             )}
 
-            {/* --- MODAL FORMULARIO RECARGO --- */}
+            {/* VISTA 3: BANCOS AUTORIZADOS */}
+            {pestannaActiva === 'BANCOS' && (
+                <section className="contenedor-huespedes">
+                    <section className="barra-herramientas">
+                        <section className="grupo-controles"></section>
+                        <button type="button" className="boton-agregar" onClick={() => setModalBancoAbierto(true)}>
+                            <span>+ Agregar Banco</span>
+                        </button>
+                    </section>
+
+                    <article className="tarjeta-tabla">
+                        <table className="tabla-huespedes">
+                            <thead>
+                                <tr>
+                                    <th>ID Banco</th>
+                                    <th>Nombre de la Entidad Bancaria</th>
+                                    <th className="texto-derecha">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {bancos.length > 0 ? (
+                                    bancos.map(b => (
+                                        <tr key={b.id_banco}>
+                                            <td>#{b.id_banco}</td>
+                                            <td><strong>{b.nombre_banco}</strong></td>
+                                            <td className="texto-derecha">
+                                                <button type="button" className="boton-accion peligro" onClick={() => solicitarEliminarBanco(b.id_banco, b.nombre_banco)}>🗑️</button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr><td colSpan="3" className="tabla-vacia">No hay bancos registrados en el sistema.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </article>
+                </section>
+            )}
+
+            {/* MODAL REGISTRAR RECARGO */}
             {modalRecargoAbierto && (
-                <aside className="overlay-modal" onClick={cerrarModalRecargo}>
+                <aside className="overlay-modal" onClick={() => setModalRecargoAbierto(false)}>
                     <article className="contenido-modal" onClick={(e) => e.stopPropagation()}>
                         <header className="encabezado-modal">
-                            <h2 className="titulo-modal">
-                                {modoRecargo === 'CREAR' ? 'Nuevo Recargo' : 'Editar Recargo'}
-                            </h2>
-                            <button type="button" className="boton-cerrar-modal" onClick={cerrarModalRecargo}>&times;</button>
+                            <h2 className="titulo-modal">{modoRecargo === 'CREAR' ? 'Nuevo Recargo' : 'Editar Recargo'}</h2>
+                            <button type="button" className="boton-cerrar-modal" onClick={() => setModalRecargoAbierto(false)}>&times;</button>
                         </header>
-
-                        <form onSubmit={handleSubmitRecargo} className="formulario-huesped" noValidate>
+                        <form onSubmit={handleSubmitRecargo} className="formulario-huesped">
                             <fieldset className="grupo-campos">
-                                <legend className="leyenda-formulario">Detalles del Recargo</legend>
-
                                 <label className="campo ancho-completo">
-                                    <span className="label-texto">Motivo del Recargo *</span>
+                                    <span className="label-texto">Motivo *</span>
                                     <input
                                         type="text"
                                         name="motivo_recargo"
-                                        placeholder="Ej. Cargo por mascota, servicio nocturno o descuento"
+                                        placeholder="Ej. Servicio nocturno"
                                         value={formDataRecargo.motivo_recargo}
-                                        onChange={handleChangeRecargo}
-                                        className={erroresRecargo.motivo_recargo ? 'input-error' : ''}
+                                        onChange={(e) => setFormDataRecargo({ ...formDataRecargo, motivo_recargo: e.target.value })}
                                     />
-                                    {erroresRecargo.motivo_recargo && <span className="texto-error-campo">{erroresRecargo.motivo_recargo}</span>}
                                 </label>
-
                                 <label className="campo medio">
                                     <span className="label-texto">Tipo de Operación *</span>
-                                    <select name="tipo_operacion" value={formDataRecargo.tipo_operacion} onChange={handleChangeRecargo}>
+                                    <select
+                                        name="tipo_operacion"
+                                        value={formDataRecargo.tipo_operacion}
+                                        onChange={(e) => setFormDataRecargo({ ...formDataRecargo, tipo_operacion: e.target.value })}
+                                    >
                                         <option value="Porcentaje">Porcentaje (%)</option>
                                         <option value="Monto Fijo">Monto Fijo ($)</option>
                                     </select>
                                 </label>
-
                                 <label className="campo medio">
                                     <span className="label-texto">Monto / Valor *</span>
                                     <input
                                         type="number"
                                         step="0.01"
                                         name="monto"
-                                        placeholder="Ej. 10.00"
+                                        placeholder="0.00"
                                         value={formDataRecargo.monto}
-                                        onChange={handleChangeRecargo}
-                                        className={erroresRecargo.monto ? 'input-error' : ''}
+                                        onChange={(e) => setFormDataRecargo({ ...formDataRecargo, monto: e.target.value })}
                                     />
-                                    {erroresRecargo.monto && <span className="texto-error-campo">{erroresRecargo.monto}</span>}
                                 </label>
-
                                 <label className="campo ancho-completo">
                                     <span className="label-texto">Tipo de Cálculo *</span>
-                                    <select name="tipo_calculo" value={formDataRecargo.tipo_calculo} onChange={handleChangeRecargo}>
+                                    <select
+                                        name="tipo_calculo"
+                                        value={formDataRecargo.tipo_calculo}
+                                        onChange={(e) => setFormDataRecargo({ ...formDataRecargo, tipo_calculo: e.target.value })}
+                                    >
                                         <option value="Suma">Suma (+)</option>
                                         <option value="Resta">Resta (-)</option>
                                     </select>
                                 </label>
                             </fieldset>
-
                             <footer className="acciones-formulario">
-                                <button type="button" className="boton-cancelar" onClick={cerrarModalRecargo} disabled={guardandoRecargo}>Cancelar</button>
-                                <button type="submit" className="boton-guardar" disabled={guardandoRecargo}>
-                                    {guardandoRecargo ? 'Guardando...' : (modoRecargo === 'CREAR' ? 'Guardar Recargo' : 'Actualizar Datos')}
-                                </button>
+                                <button type="button" className="boton-cancelar" onClick={() => setModalRecargoAbierto(false)}>Cancelar</button>
+                                <button type="submit" className="boton-guardar" disabled={guardandoRecargo}>Guardar</button>
                             </footer>
                         </form>
                     </article>
                 </aside>
             )}
 
-            {/* --- MODAL HISTORIAL DE PAGOS / AVANCES --- */}
-            {modalHistorialAbierto && reservaSeleccionadaHistorial && (
-                <aside className="overlay-modal" onClick={cerrarHistorialPagos}>
-                    <article className="contenido-modal modal-detalle modal-detalle-scrollable" onClick={(e) => e.stopPropagation()}>
+            {/* MODAL REGISTRAR BANCO */}
+            {modalBancoAbierto && (
+                <aside className="overlay-modal" onClick={() => setModalBancoAbierto(false)}>
+                    <article className="contenido-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
                         <header className="encabezado-modal">
-                            <hgroup className="titulo-modal-grupo">
-                                <h2 className="titulo-modal">Avances de Pago - Reserva N° {reservaSeleccionadaHistorial.codigo_reserva}</h2>
-                                <span className="subtitulo-modal-tipo">Huésped: {reservaSeleccionadaHistorial.nombre_huesped || 'General'}</span>
-                            </hgroup>
-                            <button type="button" className="boton-cerrar-modal" onClick={cerrarHistorialPagos}>&times;</button>
+                            <h2 className="titulo-modal">Registrar Banco Autorizado</h2>
+                            <button type="button" className="boton-cerrar-modal" onClick={() => setModalBancoAbierto(false)}>&times;</button>
                         </header>
-
-                        <section className="cuerpo-modal-detalle cuerpo-modal-scrollable">
-                            <section className="seccion-bloque-detalle">
-                                <h3 className="titulo-seccion-detalle">Pagos Registrados</h3>
-                                {pagos.filter(p => Number(p.codigo_reserva) === Number(reservaSeleccionadaHistorial.codigo_reserva)).length > 0 ? (
-                                    <div className="contenedor-tabla-modal">
-                                        <table className="tabla-huespedes">
-                                            <thead>
-                                                <tr>
-                                                    <th>Fecha</th>
-                                                    <th>Método</th>
-                                                    <th>Referencia</th>
-                                                    <th>Monto Original</th>
-                                                    <th>Equiv. USD</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {pagos
-                                                    .filter(p => Number(p.codigo_reserva) === Number(reservaSeleccionadaHistorial.codigo_reserva))
-                                                    .map(p => {
-                                                        const montoP = Number(p.monto);
-                                                        const esBs = p.moneda?.toUpperCase() === 'VES';
-                                                        const equivUSD = esBs ? montoP / bcvRate : montoP;
-
-                                                        return (
-                                                            <tr key={p.id_pago}>
-                                                                <td><small>{new Date(p.fecha_pago).toLocaleDateString()}</small></td>
-                                                                <td><span className="badge-documento">{p.metodo_pago}</span></td>
-                                                                <td><small>{p.num_referencia || 'N/A'}</small></td>
-                                                                <td><strong>{montoP.toFixed(2)} {p.moneda}</strong></td>
-                                                                <td><strong className="badge-disponible">${equivUSD.toFixed(2)}</strong></td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                ) : (
-                                    <p className="tabla-vacia">No hay pagos registrados para esta reserva.</p>
-                                )}
-                            </section>
-                        </section>
-
-                        <footer className="acciones-modal-detalle">
-                            <button type="button" className="boton-cancelar" onClick={cerrarHistorialPagos}>Cerrar</button>
-                        </footer>
+                        <form onSubmit={handleCrearBanco} className="formulario-huesped">
+                            <fieldset className="grupo-campos">
+                                <label className="campo ancho-completo">
+                                    <span className="label-texto">Nombre del Banco *</span>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej. Banesco"
+                                        value={nombreNuevoBanco}
+                                        onChange={(e) => setNombreNuevoBanco(e.target.value)}
+                                    />
+                                    {errorBanco && <span className="texto-error-campo">{errorBanco}</span>}
+                                </label>
+                            </fieldset>
+                            <footer className="acciones-formulario">
+                                <button type="button" className="boton-cancelar" onClick={() => setModalBancoAbierto(false)}>Cancelar</button>
+                                <button type="submit" className="boton-guardar">Guardar Banco</button>
+                            </footer>
+                        </form>
                     </article>
                 </aside>
             )}
 
-            {/* --- MODAL REGISTRAR PAGO --- */}
+            {/* MODAL REGISTRAR PAGO (Con botón "Pagar toda la deuda") */}
             {modalPagoAbierto && (
-                <aside className="overlay-modal" onClick={cerrarModalPago}>
+                <aside className="overlay-modal" onClick={() => setModalPagoAbierto(false)}>
                     <article className="contenido-modal" onClick={(e) => e.stopPropagation()}>
                         <header className="encabezado-modal">
-                            <h2 className="titulo-modal">Registrar Nuevo Pago a Reserva</h2>
-                            <button type="button" className="boton-cerrar-modal" onClick={cerrarModalPago}>&times;</button>
+                            <h2 className="titulo-modal">Registrar Pago y Transacción</h2>
+                            <button type="button" className="boton-cerrar-modal" onClick={() => setModalPagoAbierto(false)}>&times;</button>
                         </header>
-
-                        <form onSubmit={handleSubmitPago} className="formulario-huesped" noValidate>
+                        <form onSubmit={handleSubmitPago} className="formulario-huesped">
                             <fieldset className="grupo-campos">
-                                <legend className="leyenda-formulario">
-                                    Datos del Pago (Tasa BCV actual: {bcvRate.toFixed(2)} Bs/USD)
-                                </legend>
-
                                 <label className="campo ancho-completo">
-                                    <span className="label-texto">Seleccionar Reserva *</span>
+                                    <span className="label-texto">Reserva *</span>
                                     <select
                                         name="codigo_reserva"
                                         value={formDataPago.codigo_reserva}
-                                        onChange={handleChangePago}
-                                        className={erroresPago.codigo_reserva ? 'input-error' : ''}
+                                        onChange={(e) => setFormDataPago({ ...formDataPago, codigo_reserva: e.target.value })}
                                     >
-                                        <option value="">Seleccione una reserva...</option>
-                                        {reservas.map((res) => (
+                                        <option value="">Seleccione reserva...</option>
+                                        {reservas.map(res => (
                                             <option key={res.codigo_reserva} value={res.codigo_reserva}>
-                                                Reserva N° {res.codigo_reserva} - {res.nombre_huesped || ('Huésped ' + res.id_huesped)} (Hab. {res.codigo_habitacion})
+                                                Reserva N° {res.codigo_reserva} - {res.nombre_huesped}
                                             </option>
                                         ))}
                                     </select>
-                                    {erroresPago.codigo_reserva && <span className="texto-error-campo">{erroresPago.codigo_reserva}</span>}
                                 </label>
 
                                 <label className="campo medio">
                                     <span className="label-texto">Método de Pago *</span>
-                                    <select name="metodo_pago" value={formDataPago.metodo_pago} onChange={handleChangePago}>
-                                        <option value="Efectivo">Efectivo</option>
-                                        <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
-                                        <option value="Tarjeta de Débito">Tarjeta de Débito</option>
+                                    <select
+                                        name="metodo_pago"
+                                        value={formDataPago.metodo_pago}
+                                        onChange={(e) => setFormDataPago({ ...formDataPago, metodo_pago: e.target.value })}
+                                    >
                                         <option value="Transferencia Bancaria">Transferencia Bancaria</option>
                                         <option value="Pago Móvil">Pago Móvil</option>
                                         <option value="Zelle">Zelle</option>
+                                        <option value="Efectivo">Efectivo</option>
+                                        <option value="Tarjeta">Tarjeta</option>
                                     </select>
                                 </label>
 
                                 <label className="campo medio">
                                     <span className="label-texto">Moneda *</span>
-                                    <select name="moneda" value={formDataPago.moneda} onChange={handleChangePago}>
+                                    <select
+                                        name="moneda"
+                                        value={formDataPago.moneda}
+                                        onChange={(e) => setFormDataPago({ ...formDataPago, moneda: e.target.value })}
+                                    >
                                         <option value="USD">USD ($)</option>
                                         <option value="VES">Bolívares (VES)</option>
-                                        <option value="EUR">Euros (€)</option>
                                     </select>
                                 </label>
 
                                 <label className="campo medio">
-                                    <span className="label-texto">Monto a Pagar *</span>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span className="label-texto">Monto *</span>
+                                        <button
+                                            type="button"
+                                            onClick={handlePagarTodaLaDeuda}
+                                            style={{ fontSize: '0.75rem', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                                        >
+                                            [ Pagar toda la deuda ]
+                                        </button>
+                                    </div>
                                     <input
                                         type="number"
                                         step="0.01"
-                                        name="monto"
-                                        placeholder="Ej. 50.00"
+                                        placeholder="0.00"
                                         value={formDataPago.monto}
-                                        onChange={handleChangePago}
-                                        className={erroresPago.monto ? 'input-error' : ''}
-                                    />
-                                    {formDataPago.monto !== '' && (
-                                        <small className="texto-ayuda-conversion">
-                                            💱 {equivalenteCalculado}
-                                        </small>
-                                    )}
-                                    {erroresPago.monto && <span className="texto-error-campo">{erroresPago.monto}</span>}
-                                </label>
-
-                                <label className="campo medio">
-                                    <span className="label-texto">Banco Destino</span>
-                                    <input
-                                        type="text"
-                                        name="banco_destino"
-                                        placeholder="Ej. Banco de Venezuela / Banesco"
-                                        value={formDataPago.banco_destino}
-                                        onChange={handleChangePago}
+                                        onChange={(e) => setFormDataPago({ ...formDataPago, monto: e.target.value })}
                                     />
                                 </label>
 
-                                <label className="campo medio">
-                                    <span className="label-texto">N° de Referencia</span>
-                                    <input
-                                        type="text"
-                                        name="num_referencia"
-                                        placeholder="Ej. 12345678"
-                                        value={formDataPago.num_referencia}
-                                        onChange={handleChangePago}
-                                    />
-                                </label>
+                                {['Transferencia Bancaria', 'Pago Móvil', 'Zelle'].includes(formDataPago.metodo_pago) && (
+                                    <>
+                                        <label className="campo medio">
+                                            <span className="label-texto">Banco Destino Autorizado *</span>
+                                            <select
+                                                name="id_banco_destino"
+                                                value={formDataPago.id_banco_destino}
+                                                onChange={(e) => setFormDataPago({ ...formDataPago, id_banco_destino: e.target.value })}
+                                            >
+                                                <option value="">Seleccione banco receptor...</option>
+                                                {bancos.map(b => (
+                                                    <option key={b.id_banco} value={b.id_banco}>{b.nombre_banco}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+
+                                        <label className="campo medio">
+                                            <span className="label-texto">N° de Referencia Bancaria *</span>
+                                            <input
+                                                type="text"
+                                                placeholder="Ej. 00192837"
+                                                value={formDataPago.num_referencia}
+                                                onChange={(e) => setFormDataPago({ ...formDataPago, num_referencia: e.target.value })}
+                                            />
+                                        </label>
+                                    </>
+                                )}
 
                                 <label className="campo ancho-completo">
-                                    <span className="label-texto">Descripción / Concepto *</span>
+                                    <span className="label-texto">Concepto / Descripción *</span>
                                     <input
                                         type="text"
-                                        name="descripcion"
-                                        placeholder="Ej. Abono inicial de reserva o pago total"
+                                        placeholder="Ej. Pago de abono inicial"
                                         value={formDataPago.descripcion}
-                                        onChange={handleChangePago}
+                                        onChange={(e) => setFormDataPago({ ...formDataPago, descripcion: e.target.value })}
                                     />
                                 </label>
                             </fieldset>
-
                             <footer className="acciones-formulario">
-                                <button type="button" className="boton-cancelar" onClick={cerrarModalPago} disabled={guardandoPago}>Cancelar</button>
-                                <button type="submit" className="boton-guardar" disabled={guardandoPago}>
-                                    {guardandoPago ? 'Registrando...' : 'Guardar y Asociar Pago'}
-                                </button>
+                                <button type="button" className="boton-cancelar" onClick={() => setModalPagoAbierto(false)}>Cancelar</button>
+                                <button type="submit" className="boton-guardar" disabled={guardandoPago}>Registrar Transacción</button>
                             </footer>
                         </form>
                     </article>
                 </aside>
             )}
 
-            {/* --- MODAL DE ALERTAS --- */}
+            {/* MODAL HISTORIAL DE PAGOS */}
+            {modalHistorialAbierto && reservaSeleccionadaHistorial && (
+                <aside className="overlay-modal" onClick={() => setModalHistorialAbierto(false)}>
+                    <article className="contenido-modal modal-detalle" onClick={(e) => e.stopPropagation()}>
+                        <header className="encabezado-modal">
+                            <h2 className="titulo-modal">Historial - Reserva N° {reservaSeleccionadaHistorial.codigo_reserva}</h2>
+                            <button type="button" className="boton-cerrar-modal" onClick={() => setModalHistorialAbierto(false)}>&times;</button>
+                        </header>
+                        <section className="cuerpo-modal-detalle">
+                            <table className="tabla-huespedes">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Método</th>
+                                        <th>Referencia</th>
+                                        <th>Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pagos.filter(p => Number(p.codigo_reserva) === Number(reservaSeleccionadaHistorial.codigo_reserva)).map(p => (
+                                        <tr key={p.id_pago}>
+                                            <td>{new Date(p.fecha_pago).toLocaleDateString()}</td>
+                                            <td>{p.metodo_pago}</td>
+                                            <td>{p.num_referencia || 'N/A'}</td>
+                                            <td><strong>{Number(p.monto).toFixed(2)} {p.moneda}</strong></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </section>
+                        <footer className="acciones-modal-detalle">
+                            <button type="button" className="boton-cancelar" onClick={() => setModalHistorialAbierto(false)}>Cerrar</button>
+                        </footer>
+                    </article>
+                </aside>
+            )}
+
+            {/* MODAL DE ALERTAS GLOBAL */}
             {alerta.abierto && (
                 <aside className="overlay-modal z-alto">
                     <article className="modal-alerta-tarjeta">
@@ -982,7 +675,7 @@ export default function Finanzas({ usuario }) {
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                             )}
                             {alerta.tipo === 'confirmar' && (
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                             )}
                         </header>
                         <h3 className="titulo-alerta">{alerta.titulo}</h3>
@@ -991,7 +684,7 @@ export default function Finanzas({ usuario }) {
                             {alerta.tipo === 'confirmar' ? (
                                 <nav className="grupo-botones-alerta-confirmar">
                                     <button type="button" className="boton-alerta-secundario" onClick={() => setAlerta(prev => ({ ...prev, abierto: false }))}>Cancelar</button>
-                                    <button type="button" className="boton-alerta-peligro" onClick={() => { setAlerta(prev => ({ ...prev, abierto: false })); if (alerta.accionConfirmar) alerta.accionConfirmar(); }}>{alerta.textoConfirmar || 'Aceptar'}</button>
+                                    <button type="button" className="boton-alerta-peligro" onClick={() => { setAlerta(prev => ({ ...prev, abierto: false })); if (alerta.accionConfirmar) alerta.accionConfirmar(); }}>Aceptar</button>
                                 </nav>
                             ) : (
                                 <button type="button" className="boton-alerta-primario" onClick={() => setAlerta(prev => ({ ...prev, abierto: false }))}>Aceptar</button>
