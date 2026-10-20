@@ -22,11 +22,15 @@ export default function Reservas() {
   const [temporadas, setTemporadas] = useState([]);
   const [tarifasCatalogo, setTarifasCatalogo] = useState([]);
   const [bcvRate, setBcvRate] = useState(875.65);
+  const [personalizarMensaje, setPersonalizarMensaje] = useState(false);
+  const [mensajePersonalizado, setMensajePersonalizado] = useState('');
 
   const [cargando, setCargando] = useState(true);
   const [errorTabla, setErrorTabla] = useState(null);
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('TODAS');
+  const [filtroFechaInicio, setFiltroFechaInicio] = useState('');
+  const [filtroFechaFin, setFiltroFechaFin] = useState('');
 
   // Estados para gestión de Telegram
   const [reservaTelegramSeleccionada, setReservaTelegramSeleccionada] = useState(null);
@@ -181,9 +185,9 @@ export default function Reservas() {
         temporadaAplicadaNombre = temporadaEncontrada.nombre_temporada;
         idTemporadaObjetivo = temporadaEncontrada.id_temporada;
       } else {
-        const temporadaNormal = temporadas.find((t) => 
-          t.fecha_inicio === 'N/A' || 
-          t.nombre_temporada.toLowerCase().includes('temporada normal') || 
+        const temporadaNormal = temporadas.find((t) =>
+          t.fecha_inicio === 'N/A' ||
+          t.nombre_temporada.toLowerCase().includes('temporada normal') ||
           t.nombre_temporada.toLowerCase().includes('baja')
         );
         if (temporadaNormal) {
@@ -196,10 +200,10 @@ export default function Reservas() {
         const tarifaCoincidente = tarifasCatalogo.find((t) => {
           const matchTipo = String(t.id_tipo_habitacion) === String(habitacionSeleccionada.id_tipo_habitacion);
           const matchEstado = t.estado?.toLowerCase() === 'activa';
-          const matchTemp = Array.isArray(t.id_temporadas) 
+          const matchTemp = Array.isArray(t.id_temporadas)
             ? t.id_temporadas.some(idT => String(idT) === String(idTemporadaObjetivo))
             : String(t.id_temporada) === String(idTemporadaObjetivo);
-          
+
           return matchTipo && matchEstado && matchTemp;
         });
 
@@ -209,7 +213,7 @@ export default function Reservas() {
           cargoHuespedAdicional = parseFloat(tarifaCoincidente.huesped_adicional || cargoHuespedAdicional);
           ivaPorc = parseFloat(tarifaCoincidente.iva || ivaPorc);
         } else {
-          const tarifaGenerica = tarifasCatalogo.find((t) => 
+          const tarifaGenerica = tarifasCatalogo.find((t) =>
             String(t.id_tipo_habitacion) === String(habitacionSeleccionada.id_tipo_habitacion) &&
             t.estado?.toLowerCase() === 'activa'
           );
@@ -287,10 +291,18 @@ export default function Reservas() {
 
   const validarCampoReserva = (nombre, valor, habSeleccionada = null) => {
     let error = '';
+    const hoyStr = new Date().toISOString().split('T')[0];
+
     if (nombre === 'id_huesped' && !valor) error = 'Debe seleccionar un huésped.';
     if (nombre === 'codigo_habitacion' && !valor) error = 'Debe seleccionar una habitación.';
-    if (nombre === 'fecha_checkin' && !valor) error = 'La fecha de check-in es obligatoria.';
+    
+    if (nombre === 'fecha_checkin') {
+      if (!valor) error = 'La fecha de check-in es obligatoria.';
+      else if (valor < hoyStr) error = 'La fecha de entrada no puede ser una fecha pasada.';
+    }
+
     if (nombre === 'fecha_checkout' && !valor) error = 'La fecha de check-out es obligatoria.';
+    
     if (nombre === 'cantidad_huespedes') {
       if (!valor) error = 'La cantidad es obligatoria.';
       else if (!/^\d+$/.test(valor) || Number(valor) <= 0) error = 'Debe ser mayor a 0.';
@@ -479,30 +491,38 @@ export default function Reservas() {
     setReservaSeleccionada(null);
   };
 
-  const cambiarEstadoReserva = async (nuevoEstado) => {
-    if (!reservaSeleccionada) return;
+  const cambiarEstadoReservaTelegram = async (nuevoEstado) => {
+    if (!reservaTelegramSeleccionada) return;
     const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
     const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
 
     try {
-      const respuesta = await fetch(`${API_RESERVAS_URL}/${reservaSeleccionada.codigo_reserva}/estado`, {
+      const payload = {
+        estado: nuevoEstado,
+        id_usuario: idUsuarioActual
+      };
+
+      if (personalizarMensaje && mensajePersonalizado.trim()) {
+        payload.mensaje_personalizado = mensajePersonalizado.trim();
+      }
+
+      const respuesta = await fetch(`${API_RESERVAS_URL}/${reservaTelegramSeleccionada.codigo_reserva}/estado`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: nuevoEstado, id_usuario: idUsuarioActual })
+        body: JSON.stringify(payload)
       });
 
       const datos = await respuesta.json().catch(() => ({}));
-      if (!respuesta.ok) throw new Error(datos.mensaje || 'No se pudo actualizar el estado.');
+      if (!respuesta.ok) throw new Error(datos.mensaje || 'Error al actualizar estado.');
 
       await cargarDatos();
-      cerrarDetalle();
-      setAlerta({ abierto: true, tipo: 'exito', titulo: '¡Estado Actualizado!', mensaje: `La reserva ahora está ${nuevoEstado}.` });
-    } catch (err) {
-      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error', mensaje: err.message });
+      cerrarModalTelegram();
+      setAlerta({ abierto: true, tipo: 'exito', titulo: '¡Estado Actualizado!', mensaje: `Reserva actualizada a ${nuevoEstado}, mensaje enviado y trasladada al panel normal.` });
+    } catch (error) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error', mensaje: error.message });
     }
   };
 
-  // Funciones para gestionar Telegram conectado al backend
   const abrirModalTelegram = (reserva) => {
     setReservaTelegramSeleccionada(reserva);
     setModalTelegramAbierto(true);
@@ -511,36 +531,8 @@ export default function Reservas() {
   const cerrarModalTelegram = () => {
     setModalTelegramAbierto(false);
     setReservaTelegramSeleccionada(null);
-    setMensajeNotificacionBot('');
-  };
-
-  const cambiarEstadoReservaTelegram = async (nuevoEstado) => {
-    if (!reservaTelegramSeleccionada) return;
-    const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
-    const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
-
-    try {
-      const respuesta = await fetch(`${API_RESERVAS_URL}/${reservaTelegramSeleccionada.codigo_reserva}/estado`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: nuevoEstado, id_usuario: idUsuarioActual })
-      });
-
-      if (!respuesta.ok) throw new Error('Error al actualizar estado.');
-
-      // Enviar notificación automática por el bot informando el cambio de estado
-      await fetch(`${API_RESERVAS_TELEGRAM_URL}/${reservaTelegramSeleccionada.codigo_reserva}/notificar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mensaje: `Su reserva N° ${reservaTelegramSeleccionada.codigo_reserva} ha cambiado al estado: ${nuevoEstado}.` })
-      });
-
-      await cargarDatos();
-      cerrarModalTelegram();
-      setAlerta({ abierto: true, tipo: 'exito', titulo: '¡Estado Actualizado!', mensaje: `Reserva de Telegram actualizada a ${nuevoEstado} y notificada.` });
-    } catch (error) {
-      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error', mensaje: error.message });
-    }
+    setPersonalizarMensaje(false);
+    setMensajePersonalizado('');
   };
 
   const enviarNotificacionManualBot = async (evento) => {
@@ -574,7 +566,21 @@ export default function Reservas() {
     const coincideHuesped = r.nombre_huesped?.toLowerCase().includes(textoBusqueda);
     const coincideHabitacion = r.codigo_habitacion?.toString().includes(textoBusqueda);
     const coincideEstado = filtroEstado === 'TODAS' || r.estado?.toUpperCase() === filtroEstado.toUpperCase();
-    return (coincideCodigo || coincideHuesped || coincideHabitacion) && coincideEstado;
+
+    let coincideFechas = true;
+    const checkinReserva = r.fecha_checkin ? r.fecha_checkin.split('T')[0] : '';
+    const checkoutReserva = r.fecha_checkout ? r.fecha_checkout.split('T')[0] : '';
+
+    if (filtroFechaInicio && filtroFechaFin) {
+
+      coincideFechas = checkinReserva <= filtroFechaFin && checkoutReserva >= filtroFechaInicio;
+    } else if (filtroFechaInicio) {
+      coincideFechas = checkinReserva >= filtroFechaInicio;
+    } else if (filtroFechaFin) {
+      coincideFechas = checkoutReserva <= filtroFechaFin;
+    }
+
+    return (coincideCodigo || coincideHuesped || coincideHabitacion) && coincideEstado && coincideFechas;
   });
 
   const reservasTelegramFiltradas = reservasTelegram.filter((r) => {
@@ -610,13 +616,14 @@ export default function Reservas() {
           className={`boton-pestanna ${pestannaActiva === 'TELEGRAM' ? 'activa' : ''}`}
           onClick={() => setPestannaActiva('TELEGRAM')}
         >
-          Reservas Vía Telegram Bot
+          Reservas Vía Telegram Bot {reservasTelegram.length > 0 && `(${reservasTelegram.length})`}
         </button>
       </nav>
 
-      <section className="barra-herramientas">
-        <section className="grupo-controles">
-          <label className="caja-busqueda">
+      <section className="barra-herramientas barra-herramientas-reservas">
+        {/* Fila 1: Búsqueda, Estado y Botón de Nueva Reserva */}
+        <section className="grupo-controles grupo-controles-reservas">
+          <label className="caja-busqueda caja-busqueda-reservas">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" x2="16.65" y1="21" y2="16.65" />
@@ -630,7 +637,7 @@ export default function Reservas() {
             />
           </label>
 
-          <label className="caja-filtro">
+          <div className="contenedor-select-reservas">
             <select className="select-filtro" value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
               <option value="TODAS">Estado: Todos</option>
               <option value="PENDIENTE">Pendientes</option>
@@ -639,16 +646,53 @@ export default function Reservas() {
               <option value="CHECKOUT">Check-out</option>
               <option value="CANCELADA">Canceladas</option>
             </select>
-          </label>
+          </div>
         </section>
 
-        {pestannaActiva === 'RESERVAS' && (
-          <section className="grupo-acciones-barra">
-            <button type="button" className="boton-agregar" onClick={abrirModalCrearReserva}>
-              <span>+ Nueva Reserva</span>
-            </button>
-          </section>
-        )}
+        {/* Fila 2: Rango de Fechas y Botones de Acción */}
+        <section className="fila-inferior-reservas">
+          <div className="contenedor-fechas-reservas">
+            <span className="etiqueta-rango-fechas">Rango de Fechas (Check-in):</span>
+            
+            <label className="label-fecha-reservas">
+              <span>Desde:</span>
+              <input
+                type="date"
+                value={filtroFechaInicio}
+                onChange={(e) => setFiltroFechaInicio(e.target.value)}
+                className="input-fecha-reservas"
+              />
+            </label>
+
+            <label className="label-fecha-reservas">
+              <span>Hasta:</span>
+              <input
+                type="date"
+                value={filtroFechaFin}
+                onChange={(e) => setFiltroFechaFin(e.target.value)}
+                className="input-fecha-reservas"
+              />
+            </label>
+          </div>
+
+          <div className="contenedor-botones-reservas">
+            {(filtroFechaInicio || filtroFechaFin || busqueda || filtroEstado !== 'TODAS') && (
+              <button
+                type="button"
+                onClick={() => { setFiltroFechaInicio(''); setFiltroFechaFin(''); setBusqueda(''); setFiltroEstado('TODAS'); }}
+                className="boton-limpiar-filtros-reserva"
+              >
+                Limpiar Filtros
+              </button>
+            )}
+
+            {pestannaActiva === 'RESERVAS' && (
+              <button type="button" className="boton-agregar" onClick={abrirModalCrearReserva}>
+                <span>+ Nueva Reserva</span>
+              </button>
+            )}
+          </div>
+        </section>
       </section>
 
       {cargando ? (
@@ -863,7 +907,7 @@ export default function Reservas() {
       {/* MODAL DE GESTIÓN Y NOTIFICACIÓN TELEGRAM */}
       {modalTelegramAbierto && reservaTelegramSeleccionada && (
         <aside className="overlay-modal" onClick={cerrarModalTelegram}>
-          <article className="contenido-modal modal-detalle" style={{ maxWidth: '580px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+          <article className="contenido-modal modal-detalle modal-telegram-ancho" onClick={(e) => e.stopPropagation()}>
             <header className="encabezado-modal">
               <hgroup className="titulo-modal-grupo">
                 <h2 className="titulo-modal">Reserva Bot N° #{reservaTelegramSeleccionada.codigo_reserva}</h2>
@@ -873,7 +917,7 @@ export default function Reservas() {
               <button type="button" className="boton-cerrar-modal" onClick={cerrarModalTelegram}>&times;</button>
             </header>
 
-            <section className="cuerpo-modal-detalle">
+            <section className="cuerpo-modal-detalle cuerpo-modal-telegram">
               <section className="seccion-bloque-detalle">
                 <h3 className="titulo-seccion-detalle">Detalles del Huésped y Estancia</h3>
                 <section className="grid-info-tarjetas">
@@ -897,6 +941,28 @@ export default function Reservas() {
               </section>
 
               <section className="seccion-bloque-detalle">
+                <h3 className="titulo-seccion-detalle">Configuración de Mensaje</h3>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={personalizarMensaje} 
+                    onChange={(e) => setPersonalizarMensaje(e.target.checked)} 
+                  />
+                  Personalizar mensaje para el chat
+                </label>
+
+                {personalizarMensaje && (
+                  <textarea
+                    rows="2"
+                    className="textarea-notificacion"
+                    placeholder="Escribe el mensaje personalizado..."
+                    value={mensajePersonalizado}
+                    onChange={(e) => setMensajePersonalizado(e.target.value)}
+                  />
+                )}
+              </section>
+
+              <section className="seccion-bloque-detalle">
                 <h3 className="titulo-seccion-detalle">Acciones de la Reserva</h3>
                 <div className="grupo-acciones-modal-telegram">
                   <button 
@@ -913,45 +979,6 @@ export default function Reservas() {
                   >
                     Cancelar Reserva
                   </button>
-                </div>
-              </section>
-
-              <section className="seccion-bloque-detalle">
-                <h3 className="titulo-seccion-detalle">Enviar Mensaje Directo al Chat</h3>
-                <form onSubmit={enviarNotificacionManualBot} className="formulario-notificacion-telegram">
-                  <textarea
-                    rows="2"
-                    className="textarea-notificacion"
-                    placeholder="Escriba un mensaje para enviar al chat del huésped..."
-                    value={mensajeNotificacionBot}
-                    onChange={(e) => setMensajeNotificacionBot(e.target.value)}
-                  />
-                  <div className="contenedor-boton-notificacion">
-                    <button type="submit" className="boton-guardar" disabled={enviandoMensajeBot}>
-                      {enviandoMensajeBot ? 'Enviando...' : 'Enviar Mensaje'}
-                    </button>
-                  </div>
-                </form>
-              </section>
-
-              <section className="seccion-bloque-detalle">
-                <h3 className="titulo-seccion-detalle">Historial de Notificaciones</h3>
-                <div className="contenedor-historial-notificaciones">
-                  {reservaTelegramSeleccionada.historial_notificaciones && reservaTelegramSeleccionada.historial_notificaciones.length > 0 ? (
-                    reservaTelegramSeleccionada.historial_notificaciones.map((notif, index) => (
-                      <article key={index} className="tarjeta-notificacion-item">
-                        <div className="encabezado-notificacion-item">
-                          <span>{notif.fecha?.replace('T', ' ').substring(0, 19)}</span>
-                          <span className={notif.entregado ? 'estado-envio-exito' : 'estado-envio-error'}>
-                            {notif.entregado ? 'Enviado' : 'Fallido'}
-                          </span>
-                        </div>
-                        <p className="texto-notificacion-item">{notif.mensaje}</p>
-                      </article>
-                    ))
-                  ) : (
-                    <p className="texto-notificaciones-vacio">No hay notificaciones registradas.</p>
-                  )}
                 </div>
               </section>
             </section>
