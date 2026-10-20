@@ -550,7 +550,7 @@ export default function Inicio({ setVistaActual, usuario }) {
 
       {/* 7. Pie */}
       <footer className="inicio-footer-credits">
-        <span>Sistema de Gestión Hotelera - IUJO</span>
+        <span>Sistema de Gestión Hotelera</span>
         <span className="update-status"><span className="green-live-dot" /> Actualizado a las {horaActual}</span>
       </footer>
     </main>
