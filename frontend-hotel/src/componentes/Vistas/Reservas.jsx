@@ -3,6 +3,7 @@ import '../../estilos/reservas.css';
 import '../../estilos/habitaciones.css';
 
 const API_RESERVAS_URL = 'http://localhost:3000/api/reservas';
+const API_RESERVAS_TELEGRAM_URL = 'http://localhost:3000/api/reservas/telegram';
 const API_HUESPEDES_URL = 'http://localhost:3000/api/huespedes';
 const API_HABITACIONES_URL = 'http://localhost:3000/api/habitaciones';
 const API_RECARGOS_URL = 'http://localhost:3000/api/recargos';
@@ -11,7 +12,10 @@ const API_TARIFAS_URL = 'http://localhost:3000/api/tarifas';
 const API_TASA_BCV_URL = 'http://localhost:3000/api/tarifas/tasa-bcv';
 
 export default function Reservas() {
+  const [pestannaActiva, setPestannaActiva] = useState('RESERVAS');
+
   const [reservas, setReservas] = useState([]);
+  const [reservasTelegram, setReservasTelegram] = useState([]);
   const [huespedes, setHuespedes] = useState([]);
   const [habitaciones, setHabitaciones] = useState([]);
   const [recargosDisponibles, setRecargosDisponibles] = useState([]);
@@ -23,6 +27,12 @@ export default function Reservas() {
   const [errorTabla, setErrorTabla] = useState(null);
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('TODAS');
+
+  // Estados para gestión de Telegram
+  const [reservaTelegramSeleccionada, setReservaTelegramSeleccionada] = useState(null);
+  const [modalTelegramAbierto, setModalTelegramAbierto] = useState(false);
+  const [mensajeNotificacionBot, setMensajeNotificacionBot] = useState('');
+  const [enviandoMensajeBot, setEnviandoMensajeBot] = useState(false);
 
   const [modalFormAbierto, setModalFormAbierto] = useState(false);
   const [modoModal, setModoModal] = useState('CREAR');
@@ -62,8 +72,9 @@ export default function Reservas() {
     setErrorTabla(null);
 
     try {
-      const [respReservas, respHuespedes, respHabitaciones, respRecargos, respTemporadas, respTarifas, respBcv] = await Promise.all([
+      const [respReservas, respTelegram, respHuespedes, respHabitaciones, respRecargos, respTemporadas, respTarifas, respBcv] = await Promise.all([
         fetch(API_RESERVAS_URL).catch(() => ({ ok: false })),
+        fetch(API_RESERVAS_TELEGRAM_URL).catch(() => ({ ok: false })),
         fetch(API_HUESPEDES_URL).catch(() => ({ ok: false })),
         fetch(API_HABITACIONES_URL).catch(() => ({ ok: false })),
         fetch(API_RECARGOS_URL).catch(() => ({ ok: false })),
@@ -75,6 +86,11 @@ export default function Reservas() {
       if (respReservas.ok) {
         const datosReservas = await respReservas.json();
         setReservas(Array.isArray(datosReservas) ? datosReservas : []);
+      }
+
+      if (respTelegram.ok) {
+        const datosTelegram = await respTelegram.json();
+        setReservasTelegram(Array.isArray(datosTelegram) ? datosTelegram : []);
       }
 
       if (respHuespedes.ok) {
@@ -118,7 +134,7 @@ export default function Reservas() {
     cargarDatos();
   }, []);
 
- const calcularDetalleFinanciero = (formData) => {
+  const calcularDetalleFinanciero = (formData) => {
     const habitacionSeleccionada = habitaciones.find(
       (h) => String(h.codigo_habitacion) === String(formData.codigo_habitacion)
     );
@@ -176,7 +192,7 @@ export default function Reservas() {
         }
       }
 
-       if (idTemporadaObjetivo) {
+      if (idTemporadaObjetivo) {
         const tarifaCoincidente = tarifasCatalogo.find((t) => {
           const matchTipo = String(t.id_tipo_habitacion) === String(habitacionSeleccionada.id_tipo_habitacion);
           const matchEstado = t.estado?.toLowerCase() === 'activa';
@@ -486,6 +502,72 @@ export default function Reservas() {
     }
   };
 
+  // Funciones para gestionar Telegram conectado al backend
+  const abrirModalTelegram = (reserva) => {
+    setReservaTelegramSeleccionada(reserva);
+    setModalTelegramAbierto(true);
+  };
+
+  const cerrarModalTelegram = () => {
+    setModalTelegramAbierto(false);
+    setReservaTelegramSeleccionada(null);
+    setMensajeNotificacionBot('');
+  };
+
+  const cambiarEstadoReservaTelegram = async (nuevoEstado) => {
+    if (!reservaTelegramSeleccionada) return;
+    const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+    const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
+    try {
+      const respuesta = await fetch(`${API_RESERVAS_URL}/${reservaTelegramSeleccionada.codigo_reserva}/estado`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: nuevoEstado, id_usuario: idUsuarioActual })
+      });
+
+      if (!respuesta.ok) throw new Error('Error al actualizar estado.');
+
+      // Enviar notificación automática por el bot informando el cambio de estado
+      await fetch(`${API_RESERVAS_TELEGRAM_URL}/${reservaTelegramSeleccionada.codigo_reserva}/notificar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mensaje: `Su reserva N° ${reservaTelegramSeleccionada.codigo_reserva} ha cambiado al estado: ${nuevoEstado}.` })
+      });
+
+      await cargarDatos();
+      cerrarModalTelegram();
+      setAlerta({ abierto: true, tipo: 'exito', titulo: '¡Estado Actualizado!', mensaje: `Reserva de Telegram actualizada a ${nuevoEstado} y notificada.` });
+    } catch (error) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error', mensaje: error.message });
+    }
+  };
+
+  const enviarNotificacionManualBot = async (evento) => {
+    evento.preventDefault();
+    if (!mensajeNotificacionBot.trim() || !reservaTelegramSeleccionada) return;
+
+    setEnviandoMensajeBot(true);
+    try {
+      const respuesta = await fetch(`${API_RESERVAS_TELEGRAM_URL}/${reservaTelegramSeleccionada.codigo_reserva}/notificar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mensaje: mensajeNotificacionBot.trim() })
+      });
+
+      const datos = await respuesta.json();
+      if (!respuesta.ok) throw new Error(datos.mensaje || 'Error al enviar notificación.');
+
+      await cargarDatos();
+      setMensajeNotificacionBot('');
+      setAlerta({ abierto: true, tipo: 'exito', titulo: 'Mensaje Transmitido', mensaje: 'La notificación fue enviada con éxito al chat de Telegram.' });
+    } catch (error) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error de Transmisión', mensaje: error.message });
+    } finally {
+      setEnviandoMensajeBot(false);
+    }
+  };
+
   const reservasFiltradas = reservas.filter((r) => {
     const textoBusqueda = busqueda.trim().toLowerCase();
     const coincideCodigo = r.codigo_reserva?.toString().includes(textoBusqueda);
@@ -495,6 +577,15 @@ export default function Reservas() {
     return (coincideCodigo || coincideHuesped || coincideHabitacion) && coincideEstado;
   });
 
+  const reservasTelegramFiltradas = reservasTelegram.filter((r) => {
+    const textoBusqueda = busqueda.trim().toLowerCase();
+    const coincideCodigo = r.codigo_reserva?.toString().includes(textoBusqueda);
+    const coincideHuesped = r.nombre_huesped?.toLowerCase().includes(textoBusqueda);
+    const coincideUsuario = r.usuario_telegram?.toLowerCase().includes(textoBusqueda);
+    const coincideEstado = filtroEstado === 'TODAS' || r.estado?.toUpperCase() === filtroEstado.toUpperCase();
+    return (coincideCodigo || coincideHuesped || coincideUsuario) && coincideEstado;
+  });
+
   const huespedSeleccionadoObj = huespedes.find(h => String(h.id_huesped) === String(formDataReserva.id_huesped));
   const habitacionSeleccionadaObj = habitaciones.find(h => String(h.codigo_habitacion) === String(formDataReserva.codigo_habitacion));
 
@@ -502,8 +593,26 @@ export default function Reservas() {
     <section className="contenedor-reservas">
       <header className="encabezado-vista">
         <h1 className="titulo-vista">Gestión de Reservas</h1>
-        <p className="subtitulo-vista">Control de estancias, check-in, check-out y asignación de habitaciones</p>
+        <p className="subtitulo-vista">Control de estancias, reservas hoteleras y canal de Telegram</p>
       </header>
+
+      {/* Pestañas de Navegación del Módulo (idéntico al estilo de Habitaciones.jsx) */}
+      <nav className="pestañas-navegacion">
+        <button
+          type="button"
+          className={`boton-pestanna ${pestannaActiva === 'RESERVAS' ? 'activa' : ''}`}
+          onClick={() => setPestannaActiva('RESERVAS')}
+        >
+          Todas las Reservas
+        </button>
+        <button
+          type="button"
+          className={`boton-pestanna ${pestannaActiva === 'TELEGRAM' ? 'activa' : ''}`}
+          onClick={() => setPestannaActiva('TELEGRAM')}
+        >
+          Reservas Vía Telegram Bot
+        </button>
+      </nav>
 
       <section className="barra-herramientas">
         <section className="grupo-controles">
@@ -515,7 +624,7 @@ export default function Reservas() {
             <input
               type="search"
               className="input-busqueda"
-              placeholder="Buscar por N° reserva, huésped o habitación..."
+              placeholder={pestannaActiva === 'RESERVAS' ? "Buscar por N° reserva, huésped o habitación..." : "Buscar por usuario de Telegram o huésped..."}
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
             />
@@ -533,24 +642,26 @@ export default function Reservas() {
           </label>
         </section>
 
-        <section className="grupo-acciones-barra">
-          <button type="button" className="boton-agregar" onClick={abrirModalCrearReserva}>
-            <span>+ Nueva Reserva</span>
-          </button>
-        </section>
+        {pestannaActiva === 'RESERVAS' && (
+          <section className="grupo-acciones-barra">
+            <button type="button" className="boton-agregar" onClick={abrirModalCrearReserva}>
+              <span>+ Nueva Reserva</span>
+            </button>
+          </section>
+        )}
       </section>
 
       {cargando ? (
         <article className="caja-cargando">
           <span className="spinner"></span>
-          <p>Cargando reservas desde la base de datos...</p>
+          <p>Cargando información desde la base de datos...</p>
         </article>
       ) : errorTabla ? (
         <aside className="mensaje-error">
           <p>⚠️ {errorTabla}</p>
           <button onClick={cargarDatos} className="boton-reintentar-tabla">Reintentar</button>
         </aside>
-      ) : (
+      ) : pestannaActiva === 'RESERVAS' ? (
         <article className="tarjeta-tabla-reservas">
           <table className="tabla-reservas">
             <thead>
@@ -595,8 +706,55 @@ export default function Reservas() {
             </tbody>
           </table>
         </article>
+      ) : (
+        /* PESTAÑA TELEGRAM CONECTADA A BD */
+        <article className="tarjeta-tabla-reservas">
+          <table className="tabla-reservas">
+            <thead>
+              <tr>
+                <th>N° Reserva</th>
+                <th>Huésped / Telegram</th>
+                <th>Habitación</th>
+                <th>Fechas</th>
+                <th>Total (USD)</th>
+                <th>Estado</th>
+                <th className="texto-derecha">Gestión Bot</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reservasTelegramFiltradas.length > 0 ? (
+                reservasTelegramFiltradas.map((reserva) => (
+                  <tr key={reserva.codigo_reserva}>
+                    <td><strong className="codigo-reserva">#{reserva.codigo_reserva}</strong></td>
+                    <td>
+                      <strong className="texto-destacado">{reserva.nombre_huesped}</strong>
+                      <p style={{ fontSize: '0.8rem', color: '#2563eb', margin: 0 }}>{reserva.usuario_telegram}</p>
+                    </td>
+                    <td>Hab. {reserva.codigo_habitacion}</td>
+                    <td><span style={{ fontSize: '0.8rem' }}>{reserva.fecha_checkin?.split('T')[0]} al {reserva.fecha_checkout?.split('T')[0]}</span></td>
+                    <td><strong>{formatUSD(reserva.monto_pagado)}</strong></td>
+                    <td><span className={`badge-estado-reserva badge-${reserva.estado?.toLowerCase()}`}>{reserva.estado}</span></td>
+                    <td className="texto-derecha">
+                      <button
+                        type="button"
+                        className="boton-guardar"
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                        onClick={() => abrirModalTelegram(reserva)}
+                      >
+                        Gestionar y Notificar
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr><td colSpan="7" className="tabla-vacia" style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>No hay reservas registradas desde Telegram en la base de datos.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </article>
       )}
 
+      {/* MODAL CREAR / EDITAR RESERVA */}
       {modalFormAbierto && (
         <aside className="overlay-modal" onClick={cerrarModalFormulario}>
           <article className="contenido-modal" style={{ maxWidth: '650px' }} onClick={(e) => e.stopPropagation()}>
@@ -673,21 +831,6 @@ export default function Reservas() {
                       </section>
                     </label>
                   </section>
-
-                  {formDataReserva.recargos_ids.length > 0 && (
-                    <section style={{ marginTop: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                      {formDataReserva.recargos_ids.map((idRec) => {
-                        const recObj = recargosDisponibles.find(r => String(r.id_recargo) === String(idRec));
-                        if (!recObj) return null;
-                        return (
-                          <span key={idRec} style={{ background: '#e2e8f0', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#1e293b' }}>
-                            {recObj.motivo_recargo} ({recObj.tipo_calculo === 'Suma' ? '+' : '-'}{recObj.tipo_operacion?.toLowerCase() === 'porcentaje' ? `${recObj.monto}%` : `$${recObj.monto}`})
-                            <button type="button" onClick={() => removerRecargoSeleccionado(idRec)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#dc2626' }}>&times;</button>
-                          </span>
-                        );
-                      })}
-                    </section>
-                  )}
                 </fieldset>
 
                 <footer className="acciones-formulario" style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', border: 'none', padding: 0 }}>
@@ -696,72 +839,17 @@ export default function Reservas() {
                 </footer>
               </form>
             ) : (
-              /* PASO 2: PANTALLA DE CONFIRMACIÓN Y DESGLOSE DE COSTOS */
               <div className="formulario-huesped">
                 <section style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                   <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', marginBottom: '1rem' }}>Resumen de la Estancia</h3>
-
-                  <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem' }}>
-                    <strong>Huésped:</strong> {huespedSeleccionadoObj?.nombre || 'N/A'}
-                  </p>
-                  <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem' }}>
-                    <strong>Habitación:</strong> Hab. {formDataReserva.codigo_habitacion} ({habitacionSeleccionadaObj?.nombre_tipo || 'Estándar'})
-                  </p>
-                  <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem' }}>
-                    <strong>Fechas:</strong> Del {formDataReserva.fecha_checkin} al {formDataReserva.fecha_checkout} ({finanzasForm.noches} noche(s))
-                  </p>
-                  <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem' }}>
-                    <strong>Temporada Aplicada:</strong> <span style={{ color: '#2563eb', fontWeight: 600 }}>{finanzasForm.temporadaAplicadaNombre}</span>
-                  </p>
-                  <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '1rem' }}>
-                    <strong>Huéspedes:</strong> {formDataReserva.cantidad_huespedes} persona(s)
-                  </p>
-
-                  <hr style={{ border: '0', borderTop: '1px solid #cbd5e1', margin: '0.75rem 0' }} />
-
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.75rem' }}>Desglose Financiero (Autocompletado)</h3>
-
-                  <section style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#64748b' }}>
-                    <span>Tarifa base / noche ({finanzasForm.noches} x {formatUSD(finanzasForm.precioBaseNoche)}):</span>
-                    <strong>{formatUSD(finanzasForm.subtotalTarifaBase)}</strong>
-                  </section>
-
-                  {finanzasForm.huespedesExtra > 0 && (
-                    <section style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#d97706' }}>
-                      <span>Huéspedes extra ({finanzasForm.huespedesExtra}):</span>
-                      <strong>+ {formatUSD(finanzasForm.costoExtraTotal)}</strong>
-                    </section>
-                  )}
-
-                  {finanzasForm.listaRecargosAplicados.map((rec, idx) => (
-                    <section key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem', color: rec.tipo_calculo === 'Suma' ? '#dc2626' : '#16a34a' }}>
-                      <span>{rec.motivo_recargo}:</span>
-                      <strong>{rec.tipo_calculo === 'Suma' ? '+' : '-'}{formatUSD(Math.abs(rec.montoCalculado))}</strong>
-                    </section>
-                  ))}
-
-                  <section style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#64748b' }}>
-                    <span>IVA ({finanzasForm.ivaPorc}%):</span>
-                    <strong>{formatUSD(finanzasForm.ivaUSD)}</strong>
-                  </section>
-
-                  <hr style={{ border: '0', borderTop: '1px solid #cbd5e1', margin: '0.75rem 0' }} />
-
-                  <section style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
-                    <span>Total a Pagar (USD):</span>
-                    <span style={{ color: '#16a34a' }}>{formatUSD(finanzasForm.totalUSD)}</span>
-                  </section>
-
-                  <section style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 600, color: '#2563eb', marginTop: '0.3rem' }}>
-                    <span>Total en Bs (BCV):</span>
-                    <span>{formatBs(finanzasForm.totalBs)}</span>
-                  </section>
-
-                  <small style={{ display: 'block', fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.5rem' }}>* Tasa BCV: 1 USD = {bcvRate.toFixed(2)} Bs</small>
+                  <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem' }}><strong>Huésped:</strong> {huespedSeleccionadoObj?.nombre || 'N/A'}</p>
+                  <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem' }}><strong>Habitación:</strong> Hab. {formDataReserva.codigo_habitacion}</p>
+                  <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '0.4rem' }}><strong>Fechas:</strong> Del {formDataReserva.fecha_checkin} al {formDataReserva.fecha_checkout} ({finanzasForm.noches} noche(s))</p>
+                  <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '1rem' }}><strong>Total a Pagar (USD):</strong> <span style={{ color: '#16a34a', fontWeight: 700 }}>{formatUSD(finanzasForm.totalUSD)}</span></p>
                 </section>
 
                 <footer className="acciones-formulario" style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem', justifyContent: 'space-between', border: 'none', padding: 0 }}>
-                  <button type="button" className="boton-cancelar" onClick={() => setPasoFormulario('EDITANDO')} disabled={guardando}>&larr; Volver a Editar</button>
+                  <button type="button" className="boton-cancelar" onClick={() => setPasoFormulario('EDITANDO')} disabled={guardando}>&larr; Volver</button>
                   <button type="button" className="boton-guardar" onClick={enviarFormularioReservaFinal} disabled={guardando}>
                     {guardando ? 'Guardando...' : 'Confirmar y Registrar Reserva'}
                   </button>
@@ -772,6 +860,110 @@ export default function Reservas() {
         </aside>
       )}
 
+      {/* MODAL DE GESTIÓN Y NOTIFICACIÓN TELEGRAM */}
+      {modalTelegramAbierto && reservaTelegramSeleccionada && (
+        <aside className="overlay-modal" onClick={cerrarModalTelegram}>
+          <article className="contenido-modal modal-detalle" style={{ maxWidth: '580px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+            <header className="encabezado-modal">
+              <hgroup className="titulo-modal-grupo">
+                <h2 className="titulo-modal">Reserva Bot N° #{reservaTelegramSeleccionada.codigo_reserva}</h2>
+                <span className="subtitulo-modal-tipo">Telegram: {reservaTelegramSeleccionada.usuario_telegram}</span>
+              </hgroup>
+              <span className={`badge-estado-reserva badge-${reservaTelegramSeleccionada.estado?.toLowerCase()}`}>{reservaTelegramSeleccionada.estado}</span>
+              <button type="button" className="boton-cerrar-modal" onClick={cerrarModalTelegram}>&times;</button>
+            </header>
+
+            <section className="cuerpo-modal-detalle">
+              <section className="seccion-bloque-detalle">
+                <h3 className="titulo-seccion-detalle">Detalles del Huésped y Estancia</h3>
+                <section className="grid-info-tarjetas">
+                  <article className="item-info-mini">
+                    <span className="label-mini">Huésped</span>
+                    <strong className="valor-mini">{reservaTelegramSeleccionada.nombre_huesped}</strong>
+                  </article>
+                  <article className="item-info-mini">
+                    <span className="label-mini">Habitación</span>
+                    <strong className="valor-mini">Hab. {reservaTelegramSeleccionada.codigo_habitacion}</strong>
+                  </article>
+                  <article className="item-info-mini">
+                    <span className="label-mini">Fechas</span>
+                    <strong className="valor-mini">{reservaTelegramSeleccionada.fecha_checkin?.split('T')[0]} al {reservaTelegramSeleccionada.fecha_checkout?.split('T')[0]}</strong>
+                  </article>
+                  <article className="item-info-mini">
+                    <span className="label-mini">Monto</span>
+                    <strong className="valor-mini">{formatUSD(reservaTelegramSeleccionada.monto_pagado)}</strong>
+                  </article>
+                </section>
+              </section>
+
+              <section className="seccion-bloque-detalle">
+                <h3 className="titulo-seccion-detalle">Acciones de la Reserva</h3>
+                <div className="grupo-acciones-modal-telegram">
+                  <button 
+                    type="button" 
+                    className="boton-guardar" 
+                    onClick={() => cambiarEstadoReservaTelegram('CONFIRMADA')}
+                  >
+                    Confirmar Reserva
+                  </button>
+                  <button 
+                    type="button" 
+                    className="boton-alerta-reintentar" 
+                    onClick={() => cambiarEstadoReservaTelegram('CANCELADA')}
+                  >
+                    Cancelar Reserva
+                  </button>
+                </div>
+              </section>
+
+              <section className="seccion-bloque-detalle">
+                <h3 className="titulo-seccion-detalle">Enviar Mensaje Directo al Chat</h3>
+                <form onSubmit={enviarNotificacionManualBot} className="formulario-notificacion-telegram">
+                  <textarea
+                    rows="2"
+                    className="textarea-notificacion"
+                    placeholder="Escriba un mensaje para enviar al chat del huésped..."
+                    value={mensajeNotificacionBot}
+                    onChange={(e) => setMensajeNotificacionBot(e.target.value)}
+                  />
+                  <div className="contenedor-boton-notificacion">
+                    <button type="submit" className="boton-guardar" disabled={enviandoMensajeBot}>
+                      {enviandoMensajeBot ? 'Enviando...' : 'Enviar Mensaje'}
+                    </button>
+                  </div>
+                </form>
+              </section>
+
+              <section className="seccion-bloque-detalle">
+                <h3 className="titulo-seccion-detalle">Historial de Notificaciones</h3>
+                <div className="contenedor-historial-notificaciones">
+                  {reservaTelegramSeleccionada.historial_notificaciones && reservaTelegramSeleccionada.historial_notificaciones.length > 0 ? (
+                    reservaTelegramSeleccionada.historial_notificaciones.map((notif, index) => (
+                      <article key={index} className="tarjeta-notificacion-item">
+                        <div className="encabezado-notificacion-item">
+                          <span>{notif.fecha?.replace('T', ' ').substring(0, 19)}</span>
+                          <span className={notif.entregado ? 'estado-envio-exito' : 'estado-envio-error'}>
+                            {notif.entregado ? 'Enviado' : 'Fallido'}
+                          </span>
+                        </div>
+                        <p className="texto-notificacion-item">{notif.mensaje}</p>
+                      </article>
+                    ))
+                  ) : (
+                    <p className="texto-notificaciones-vacio">No hay notificaciones registradas.</p>
+                  )}
+                </div>
+              </section>
+            </section>
+
+            <footer className="acciones-modal-detalle">
+              <button type="button" className="boton-cancelar" onClick={cerrarModalTelegram}>Cerrar</button>
+            </footer>
+          </article>
+        </aside>
+      )}
+
+      {/* MODAL DETALLE ESTÁNDAR */}
       {modalDetalleAbierto && reservaSeleccionada && (
         <aside className="overlay-modal" onClick={cerrarDetalle}>
           <article className="contenido-modal modal-detalle" onClick={(e) => e.stopPropagation()}>
@@ -829,6 +1021,7 @@ export default function Reservas() {
         </aside>
       )}
 
+      {/* MODAL DE ALERTAS GENERALES */}
       {alerta.abierto && (
         <aside className="overlay-modal z-alto" onClick={(e) => e.stopPropagation()}>
           <article className="modal-alerta-tarjeta">
