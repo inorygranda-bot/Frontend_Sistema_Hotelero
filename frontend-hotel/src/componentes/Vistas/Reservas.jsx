@@ -32,13 +32,14 @@ export default function Reservas() {
   const [filtroFechaInicio, setFiltroFechaInicio] = useState('');
   const [filtroFechaFin, setFiltroFechaFin] = useState('');
 
-  // --- NUEVOS ESTADOS PARA CHECK-IN Y REGISTRO DIRECTO ---
   const [modalCheckinAbierto, setModalCheckinAbierto] = useState(false);
   const [reservaParaCheckin, setReservaParaCheckin] = useState(null);
   const [formDataCheckin, setFormDataCheckin] = useState({
     cantidad_acompanantes: 0,
     cantidad_maletas: 0,
-    observaciones: ''
+    observaciones: '',
+    advertenciaFecha: false,
+    nuevaFechaCheckin: ''
   });
 
   const [modalRegistroDirectoAbierto, setModalRegistroDirectoAbierto] = useState(false);
@@ -176,6 +177,39 @@ export default function Reservas() {
     setModalRegistroDirectoAbierto(true);
   };
 
+  const cambiarEstadoReserva = async (nuevoEstado) => {
+    if (!reservaSeleccionada) return;
+    const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+    const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
+    try {
+      const payload = {
+        estado: nuevoEstado,
+        id_usuario: idUsuarioActual
+      };
+
+      const respuesta = await fetch(`${API_RESERVAS_URL}/${reservaSeleccionada.codigo_reserva}/estado`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const datos = await respuesta.json().catch(() => ({}));
+      if (!respuesta.ok) throw new Error(datos.mensaje || 'Error al actualizar el estado de la reserva.');
+
+      await cargarDatos();
+      cerrarDetalle();
+      setAlerta({ 
+        abierto: true, 
+        tipo: 'exito', 
+        titulo: '¡Estado Actualizado!', 
+        mensaje: `La reserva N° ${reservaSeleccionada.codigo_reserva} fue marcada como ${nuevoEstado} exitosamente.` 
+      });
+    } catch (error) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error', mensaje: error.message });
+    }
+  };
+
   const agregarRecargoDirecto = () => {
     if (!recargoDirectoTemporal) return;
     if (formDataDirecto.recargos_ids.includes(recargoDirectoTemporal)) return;
@@ -197,10 +231,17 @@ export default function Reservas() {
   const abrirModalCheckin = (reserva) => {
     setReservaParaCheckin(reserva);
     const cantHuespedes = parseInt(reserva.cantidad_huespedes || 1);
+    
+    const hoyStr = new Date().toISOString().split('T')[0];
+    const fechaCheckinReserva = reserva.fecha_checkin ? reserva.fecha_checkin.split('T')[0] : hoyStr;
+    const esAnticipado = hoyStr < fechaCheckinReserva;
+
     setFormDataCheckin({
       cantidad_acompanantes: Math.max(0, cantHuespedes - 1),
       cantidad_maletas: 0,
-      observaciones: ''
+      observaciones: '',
+      advertenciaFecha: esAnticipado,
+      nuevaFechaCheckin: esAnticipado ? hoyStr : fechaCheckinReserva
     });
     if (modalDetalleAbierto) cerrarDetalle();
     setModalCheckinAbierto(true);
@@ -377,24 +418,23 @@ export default function Reservas() {
     const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
 
     try {
-      // Preparado para el backend: Guardará el registro en la tabla checkin y actualizará la reserva a CHECKIN
       const payload = {
         codigo_reserva: reservaParaCheckin.codigo_reserva,
         id_usuario: idUsuarioActual,
-        ...formDataCheckin
+        cantidad_acompanantes: formDataCheckin.cantidad_acompanantes,
+        cantidad_maletas: formDataCheckin.cantidad_maletas,
+        observaciones: formDataCheckin.observaciones,
+        nueva_fecha_checkin: formDataCheckin.advertenciaFecha ? formDataCheckin.nuevaFechaCheckin : null
       };
 
-      // Simulación de envío al futuro endpoint de check-in / backend
-      console.log('Datos de check-in a registrar:', payload);
-
-      // Cambiamos el estado de la reserva a CHECKIN y registramos el check-in
-      const respuesta = await fetch(`http://localhost:3000/api/reservas/${reservaParaCheckin.codigo_reserva}/estado`, {
+      const respuesta = await fetch(`http://localhost:3000/api/reservas/${reservaParaCheckin.codigo_reserva}/checkin`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'CHECKIN', id_usuario: idUsuarioActual })
+        body: JSON.stringify(payload)
       });
 
-      if (!respuesta.ok) throw new Error('No se pudo completar el check-in.');
+      const datos = await respuesta.json().catch(() => ({}));
+      if (!respuesta.ok) throw new Error(datos.mensaje || 'No se pudo completar el check-in.');
 
       await cargarDatos();
       cerrarModalCheckin();
@@ -1257,21 +1297,39 @@ export default function Reservas() {
       {/* MODAL DE REGISTRO DE CHECK-IN */}
       {modalCheckinAbierto && reservaParaCheckin && (
         <aside className="overlay-modal" onClick={cerrarModalCheckin}>
-          <article className="contenido-modal" style={{ maxWidth: '550px' }} onClick={(e) => e.stopPropagation()}>
+          <article className="contenido-modal modal-ancho-medio" onClick={(e) => e.stopPropagation()}>
             <header className="encabezado-modal">
               <h2 className="titulo-modal">Realizar Check-in (Reserva N° #{reservaParaCheckin.codigo_reserva})</h2>
               <button type="button" className="boton-cerrar-modal" onClick={cerrarModalCheckin}>&times;</button>
             </header>
 
             <form onSubmit={guardarCheckinFinal} className="formulario-huesped" noValidate>
-              <fieldset className="grupo-campos" style={{ border: 'none', padding: 0, margin: 0 }}>
+              <fieldset className="grupo-campos-limpio">
                 <legend className="leyenda-formulario">DATOS DE ENTRADA Y EQUIPAJE</legend>
 
-                <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '1rem' }}>
+                <p className="texto-resumen-item">
                   <strong>Huésped:</strong> {reservaParaCheckin.nombre_huesped} | <strong>Habitación:</strong> Hab. {reservaParaCheckin.codigo_habitacion}
                 </p>
 
-                <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', width: '100%' }}>
+                {formDataCheckin.advertenciaFecha && (
+                  <div className="tarjeta-resumen-estancia espacio-superior-corto" style={{ borderColor: '#f59e0b', background: '#fffbeb' }}>
+                    <p className="texto-resumen-item" style={{ color: '#b45309', fontWeight: 'bold' }}>
+                      ⚠️ Advertencia: La fecha de entrada estipulada en la reserva es posterior a la fecha de hoy ({reservaParaCheckin.fecha_checkin?.split('T')[0]}).
+                    </p>
+                    <label className="campo campo-ancho-total espacio-superior-corto">
+                      <span className="label-texto">¿Desea cambiar la fecha del check-in a hoy para actualizarla en la BD?</span>
+                      <input 
+                        type="date" 
+                        name="nuevaFechaCheckin" 
+                        value={formDataCheckin.nuevaFechaCheckin} 
+                        onChange={manejarCambioCheckin} 
+                        required 
+                      />
+                    </label>
+                  </div>
+                )}
+
+                <section className="grid-dos-columnas espacio-superior-corto">
                   <label className="campo">
                     <span className="label-texto">Cantidad de Acompañantes</span>
                     <input type="number" min="0" name="cantidad_acompanantes" value={formDataCheckin.cantidad_acompanantes} onChange={manejarCambioCheckin} />
@@ -1283,15 +1341,15 @@ export default function Reservas() {
                   </label>
                 </section>
 
-                <label className="campo" style={{ width: '100%', marginTop: '0.75rem' }}>
+                <label className="campo campo-ancho-total espacio-superior-corto">
                   <span className="label-texto">Observaciones / Novedades</span>
-                  <textarea rows="3" name="observaciones" value={formDataCheckin.observaciones} onChange={manejarCambioCheckin} placeholder="Notas sobre el estado de la habitación o peticiones del huésped..." className="textarea-notificacion" style={{ height: '80px' }} />
+                  <textarea rows="3" name="observaciones" value={formDataCheckin.observaciones} onChange={manejarCambioCheckin} placeholder="Notas sobre el estado de la habitación o peticiones del huésped..." className="textarea-notificacion textarea-altura-corta" />
                 </label>
               </fieldset>
 
-              <footer className="acciones-formulario" style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', border: 'none', padding: 0 }}>
+              <footer className="acciones-formulario acciones-formulario-limpio">
                 <button type="button" className="boton-cancelar" onClick={cerrarModalCheckin}>Cancelar</button>
-                <button type="submit" className="boton-guardار">Guardar Check-in y Ocupar Habitación</button>
+                <button type="submit" className="boton-guardar">Guardar Check-in y Ocupar Habitación</button>
               </footer>
             </form>
           </article>
