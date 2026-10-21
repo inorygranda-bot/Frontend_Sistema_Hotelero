@@ -32,7 +32,29 @@ export default function Reservas() {
   const [filtroFechaInicio, setFiltroFechaInicio] = useState('');
   const [filtroFechaFin, setFiltroFechaFin] = useState('');
 
-  // Estados para gestión de Telegram
+  // --- NUEVOS ESTADOS PARA CHECK-IN Y REGISTRO DIRECTO ---
+  const [modalCheckinAbierto, setModalCheckinAbierto] = useState(false);
+  const [reservaParaCheckin, setReservaParaCheckin] = useState(null);
+  const [formDataCheckin, setFormDataCheckin] = useState({
+    cantidad_acompanantes: 0,
+    cantidad_maletas: 0,
+    observaciones: ''
+  });
+
+  const [modalRegistroDirectoAbierto, setModalRegistroDirectoAbierto] = useState(false);
+  const [pasoDirecto, setPasoDirecto] = useState('EDITANDO');
+  const [formDataDirecto, setFormDataDirecto] = useState({
+    id_huesped: '',
+    codigo_habitacion: '',
+    fecha_checkin: new Date().toISOString().split('T')[0],
+    fecha_checkout: '',
+    cantidad_huespedes: 1,
+    cantidad_maletas: 0,
+    observaciones: '',
+    recargos_ids: []
+  });
+  const [recargoDirectoTemporal, setRecargoDirectoTemporal] = useState('');
+
   const [reservaTelegramSeleccionada, setReservaTelegramSeleccionada] = useState(null);
   const [modalTelegramAbierto, setModalTelegramAbierto] = useState(false);
   const [mensajeNotificacionBot, setMensajeNotificacionBot] = useState('');
@@ -137,6 +159,52 @@ export default function Reservas() {
   useEffect(() => {
     cargarDatos();
   }, []);
+
+  const abrirModalRegistroDirecto = () => {
+    setFormDataDirecto({
+      id_huesped: '',
+      codigo_habitacion: '',
+      fecha_checkin: new Date().toISOString().split('T')[0],
+      fecha_checkout: '',
+      cantidad_huespedes: 1,
+      cantidad_maletas: 0,
+      observaciones: '',
+      recargos_ids: []
+    });
+    setRecargoDirectoTemporal('');
+    setPasoDirecto('EDITANDO');
+    setModalRegistroDirectoAbierto(true);
+  };
+
+  const agregarRecargoDirecto = () => {
+    if (!recargoDirectoTemporal) return;
+    if (formDataDirecto.recargos_ids.includes(recargoDirectoTemporal)) return;
+
+    setFormDataDirecto((prev) => ({
+      ...prev,
+      recargos_ids: [...prev.recargos_ids, recargoDirectoTemporal]
+    }));
+    setRecargoDirectoTemporal('');
+  };
+
+  const removerRecargoDirecto = (idRec) => {
+    setFormDataDirecto((prev) => ({
+      ...prev,
+      recargos_ids: prev.recargos_ids.filter((id) => String(id) !== String(idRec))
+    }));
+  };
+
+  const abrirModalCheckin = (reserva) => {
+    setReservaParaCheckin(reserva);
+    const cantHuespedes = parseInt(reserva.cantidad_huespedes || 1);
+    setFormDataCheckin({
+      cantidad_acompanantes: Math.max(0, cantHuespedes - 1),
+      cantidad_maletas: 0,
+      observaciones: ''
+    });
+    if (modalDetalleAbierto) cerrarDetalle();
+    setModalCheckinAbierto(true);
+  };
 
   const calcularDetalleFinanciero = (formData) => {
     const habitacionSeleccionada = habitaciones.find(
@@ -285,9 +353,113 @@ export default function Reservas() {
   };
 
   const finanzasForm = calcularDetalleFinanciero(formDataReserva);
+  const finanzasDirecto = calcularDetalleFinanciero(formDataDirecto);
+  const huespedDirectoObj = huespedes.find((h) => String(h.id_huesped) === String(formDataDirecto.id_huesped));
 
   const formatUSD = (val) => '$ ' + (parseFloat(val) || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const formatBs = (val) => 'Bs ' + (parseFloat(val) || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const cerrarModalCheckin = () => {
+    setModalCheckinAbierto(false);
+    setReservaParaCheckin(null);
+  };
+
+  const manejarCambioCheckin = (e) => {
+    const { name, value } = e.target;
+    setFormDataCheckin((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const guardarCheckinFinal = async (e) => {
+    e.preventDefault();
+    if (!reservaParaCheckin) return;
+
+    const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+    const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
+    try {
+      // Preparado para el backend: Guardará el registro en la tabla checkin y actualizará la reserva a CHECKIN
+      const payload = {
+        codigo_reserva: reservaParaCheckin.codigo_reserva,
+        id_usuario: idUsuarioActual,
+        ...formDataCheckin
+      };
+
+      // Simulación de envío al futuro endpoint de check-in / backend
+      console.log('Datos de check-in a registrar:', payload);
+
+      // Cambiamos el estado de la reserva a CHECKIN y registramos el check-in
+      const respuesta = await fetch(`http://localhost:3000/api/reservas/${reservaParaCheckin.codigo_reserva}/estado`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: 'CHECKIN', id_usuario: idUsuarioActual })
+      });
+
+      if (!respuesta.ok) throw new Error('No se pudo completar el check-in.');
+
+      await cargarDatos();
+      cerrarModalCheckin();
+      setAlerta({
+        abierto: true,
+        tipo: 'exito',
+        titulo: '¡Check-in Realizado!',
+        mensaje: `El check-in de la reserva N° ${reservaParaCheckin.codigo_reserva} se guardó con éxito y la habitación pasó a estado Ocupada.`
+      });
+    } catch (error) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error en Check-in', mensaje: error.message });
+    }
+  };
+
+  const cerrarModalRegistroDirecto = () => {
+    setModalRegistroDirectoAbierto(false);
+  };
+
+  const manejarCambioDirecto = (e) => {
+    const { name, value } = e.target;
+    setFormDataDirecto((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const guardarRegistroDirectoFinal = async (e) => {
+    e.preventDefault();
+    const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+    const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+
+    try {
+      // Ahora enviamos el monto calculado y los recargos correspondientes a la BD
+      const payload = {
+        id_huesped: formDataDirecto.id_huesped,
+        codigo_habitacion: formDataDirecto.codigo_habitacion,
+        id_usuario: idUsuarioActual,
+        fecha_checkin: formDataDirecto.fecha_checkin,
+        fecha_checkout: formDataDirecto.fecha_checkout,
+        cantidad_huespedes: formDataDirecto.cantidad_huespedes,
+        estado: 'CHECKIN',
+        cantidad_maletas: formDataDirecto.cantidad_maletas,
+        observaciones: formDataDirecto.observaciones,
+        monto_pagado: finanzasDirecto.totalUSD, // <--- Aquí se envía el total calculado del resumen
+        recargos_ids: formDataDirecto.recargos_ids // <--- Se envían los recargos seleccionados
+      };
+
+      const respuesta = await fetch(API_RESERVAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const datos = await respuesta.json().catch(() => ({}));
+      if (!respuesta.ok) throw new Error(datos.mensaje || 'Error al registrar la llegada directa.');
+
+      await cargarDatos();
+      cerrarModalRegistroDirecto();
+      setAlerta({
+        abierto: true,
+        tipo: 'exito',
+        titulo: '¡Llegada y Check-in Registrados!',
+        mensaje: 'Se creó la reserva con su monto respectivo y se ejecutó el check-in correctamente.'
+      });
+    } catch (error) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error', mensaje: error.message });
+    }
+  };
 
   const validarCampoReserva = (nombre, valor, habSeleccionada = null) => {
     let error = '';
@@ -295,14 +467,14 @@ export default function Reservas() {
 
     if (nombre === 'id_huesped' && !valor) error = 'Debe seleccionar un huésped.';
     if (nombre === 'codigo_habitacion' && !valor) error = 'Debe seleccionar una habitación.';
-    
+
     if (nombre === 'fecha_checkin') {
       if (!valor) error = 'La fecha de check-in es obligatoria.';
       else if (valor < hoyStr) error = 'La fecha de entrada no puede ser una fecha pasada.';
     }
 
     if (nombre === 'fecha_checkout' && !valor) error = 'La fecha de check-out es obligatoria.';
-    
+
     if (nombre === 'cantidad_huespedes') {
       if (!valor) error = 'La cantidad es obligatoria.';
       else if (!/^\d+$/.test(valor) || Number(valor) <= 0) error = 'Debe ser mayor a 0.';
@@ -653,7 +825,7 @@ export default function Reservas() {
         <section className="fila-inferior-reservas">
           <div className="contenedor-fechas-reservas">
             <span className="etiqueta-rango-fechas">Rango de Fechas (Check-in):</span>
-            
+
             <label className="label-fecha-reservas">
               <span>Desde:</span>
               <input
@@ -687,9 +859,14 @@ export default function Reservas() {
             )}
 
             {pestannaActiva === 'RESERVAS' && (
-              <button type="button" className="boton-agregar" onClick={abrirModalCrearReserva}>
-                <span>+ Nueva Reserva</span>
-              </button>
+              <nav className="grupo-botones-acciones-reserva">
+                <button type="button" className="boton-secundario-barra" onClick={abrirModalRegistroDirecto}>
+                  <span>Registrar Llegada Directa</span>
+                </button>
+                <button type="button" className="boton-agregar" onClick={abrirModalCrearReserva}>
+                  <span>+ Nueva Reserva</span>
+                </button>
+              </nav>
             )}
           </div>
         </section>
@@ -943,10 +1120,10 @@ export default function Reservas() {
               <section className="seccion-bloque-detalle">
                 <h3 className="titulo-seccion-detalle">Configuración de Mensaje</h3>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.85rem', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={personalizarMensaje} 
-                    onChange={(e) => setPersonalizarMensaje(e.target.checked)} 
+                  <input
+                    type="checkbox"
+                    checked={personalizarMensaje}
+                    onChange={(e) => setPersonalizarMensaje(e.target.checked)}
                   />
                   Personalizar mensaje para el chat
                 </label>
@@ -965,16 +1142,16 @@ export default function Reservas() {
               <section className="seccion-bloque-detalle">
                 <h3 className="titulo-seccion-detalle">Acciones de la Reserva</h3>
                 <div className="grupo-acciones-modal-telegram">
-                  <button 
-                    type="button" 
-                    className="boton-guardar" 
+                  <button
+                    type="button"
+                    className="boton-guardar"
                     onClick={() => cambiarEstadoReservaTelegram('CONFIRMADA')}
                   >
                     Confirmar Reserva
                   </button>
-                  <button 
-                    type="button" 
-                    className="boton-alerta-reintentar" 
+                  <button
+                    type="button"
+                    className="boton-alerta-reintentar"
                     onClick={() => cambiarEstadoReservaTelegram('CANCELADA')}
                   >
                     Cancelar Reserva
@@ -1040,7 +1217,11 @@ export default function Reservas() {
                 <button type="button" className="boton-alerta-reintentar boton-eliminar-detalle" onClick={() => confirmarEliminacionReserva(reservaSeleccionada.codigo_reserva)}>Eliminar</button>
                 <button type="button" className="boton-secundario-barra" onClick={() => abrirModalEditarReserva(reservaSeleccionada)}>Editar</button>
                 {reservaSeleccionada.estado === 'PENDIENTE' && <button type="button" className="boton-agregar" onClick={() => cambiarEstadoReserva('CONFIRMADA')}>Confirmar</button>}
-                {reservaSeleccionada.estado === 'CONFIRMADA' && <button type="button" className="boton-agregar" onClick={() => cambiarEstadoReserva('CHECKIN')}>Check-in</button>}
+                {reservaSeleccionada.estado === 'CONFIRMADA' && (
+                  <button type="button" className="boton-agregar" onClick={() => abrirModalCheckin(reservaSeleccionada)}>
+                    Realizar Check-in
+                  </button>
+                )}
                 {reservaSeleccionada.estado === 'CHECKIN' && <button type="button" className="boton-alerta-reintentar" onClick={() => cambiarEstadoReserva('CHECKOUT')}>Check-out</button>}
               </nav>
             </footer>
@@ -1069,6 +1250,196 @@ export default function Reservas() {
                 <button type="button" className="boton-alerta-primario" onClick={() => setAlerta((prev) => ({ ...prev, abierto: false }))}>Aceptar</button>
               )}
             </footer>
+          </article>
+        </aside>
+      )}
+
+      {/* MODAL DE REGISTRO DE CHECK-IN */}
+      {modalCheckinAbierto && reservaParaCheckin && (
+        <aside className="overlay-modal" onClick={cerrarModalCheckin}>
+          <article className="contenido-modal" style={{ maxWidth: '550px' }} onClick={(e) => e.stopPropagation()}>
+            <header className="encabezado-modal">
+              <h2 className="titulo-modal">Realizar Check-in (Reserva N° #{reservaParaCheckin.codigo_reserva})</h2>
+              <button type="button" className="boton-cerrar-modal" onClick={cerrarModalCheckin}>&times;</button>
+            </header>
+
+            <form onSubmit={guardarCheckinFinal} className="formulario-huesped" noValidate>
+              <fieldset className="grupo-campos" style={{ border: 'none', padding: 0, margin: 0 }}>
+                <legend className="leyenda-formulario">DATOS DE ENTRADA Y EQUIPAJE</legend>
+
+                <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '1rem' }}>
+                  <strong>Huésped:</strong> {reservaParaCheckin.nombre_huesped} | <strong>Habitación:</strong> Hab. {reservaParaCheckin.codigo_habitacion}
+                </p>
+
+                <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', width: '100%' }}>
+                  <label className="campo">
+                    <span className="label-texto">Cantidad de Acompañantes</span>
+                    <input type="number" min="0" name="cantidad_acompanantes" value={formDataCheckin.cantidad_acompanantes} onChange={manejarCambioCheckin} />
+                  </label>
+
+                  <label className="campo">
+                    <span className="label-texto">Cantidad de Maletas</span>
+                    <input type="number" min="0" name="cantidad_maletas" value={formDataCheckin.cantidad_maletas} onChange={manejarCambioCheckin} />
+                  </label>
+                </section>
+
+                <label className="campo" style={{ width: '100%', marginTop: '0.75rem' }}>
+                  <span className="label-texto">Observaciones / Novedades</span>
+                  <textarea rows="3" name="observaciones" value={formDataCheckin.observaciones} onChange={manejarCambioCheckin} placeholder="Notas sobre el estado de la habitación o peticiones del huésped..." className="textarea-notificacion" style={{ height: '80px' }} />
+                </label>
+              </fieldset>
+
+              <footer className="acciones-formulario" style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', border: 'none', padding: 0 }}>
+                <button type="button" className="boton-cancelar" onClick={cerrarModalCheckin}>Cancelar</button>
+                <button type="submit" className="boton-guardار">Guardar Check-in y Ocupar Habitación</button>
+              </footer>
+            </form>
+          </article>
+        </aside>
+      )}
+
+      {/* MODAL DE REGISTRO DIRECTO EN HOTEL (SIN RESERVA PREVIA) */}
+      {modalRegistroDirectoAbierto && (
+        <aside className="overlay-modal" onClick={cerrarModalRegistroDirecto}>
+          <article className="contenido-modal modal-ancho-medio" onClick={(e) => e.stopPropagation()}>
+            <header className="encabezado-modal">
+              <h2 className="titulo-modal">
+                {pasoDirecto === 'EDITANDO'
+                  ? 'Registro Directo en Hotel (Check-in Inmediato)'
+                  : 'Verificar Desglose y Costos de Llegada Directa'}
+              </h2>
+              <button type="button" className="boton-cerrar-modal" onClick={cerrarModalRegistroDirecto}>&times;</button>
+            </header>
+
+            {pasoDirecto === 'EDITANDO' ? (
+              <form onSubmit={(e) => { e.preventDefault(); setPasoDirecto('CONFIRMANDO'); }} className="formulario-huesped" noValidate>
+                <fieldset className="grupo-campos-limpio">
+                  <legend className="leyenda-formulario">DATOS DE LA ESTANCIA Y LLEGADA DIRECTA</legend>
+
+                  <label className="campo campo-ancho-total">
+                    <span className="label-texto">Huésped Titular *</span>
+                    <select name="id_huesped" value={formDataDirecto.id_huesped} onChange={manejarCambioDirecto} required>
+                      <option value="">Seleccione un huésped...</option>
+                      {huespedes.map((h) => (
+                        <option key={h.id_huesped} value={h.id_huesped}>
+                          {h.nombre} ({h.correo || h.telefono})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="campo campo-ancho-total">
+                    <span className="label-texto">Habitación *</span>
+                    <select name="codigo_habitacion" value={formDataDirecto.codigo_habitacion} onChange={manejarCambioDirecto} required>
+                      <option value="">Seleccione una habitación disponible...</option>
+                      {habitaciones.map((hab) => (
+                        <option key={hab.codigo_habitacion} value={hab.codigo_habitacion}>
+                          Hab. {hab.codigo_habitacion} - {hab.nombre_tipo || 'Estándar'} (Máx. {hab.capacidad} pers.)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <section className="grid-dos-columnas">
+                    <label className="campo">
+                      <span className="label-texto">Fecha Check-in *</span>
+                      <input type="date" name="fecha_checkin" value={formDataDirecto.fecha_checkin} onChange={manejarCambioDirecto} required />
+                    </label>
+
+                    <label className="campo">
+                      <span className="label-texto">Fecha Check-out *</span>
+                      <input type="date" name="fecha_checkout" value={formDataDirecto.fecha_checkout} onChange={manejarCambioDirecto} required />
+                    </label>
+                  </section>
+
+                  <section className="grid-dos-columnas espacio-superior-corto">
+                    <label className="campo">
+                      <span className="label-texto">Total Huéspedes *</span>
+                      <input
+                        type="number"
+                        min="1"
+                        name="cantidad_huespedes"
+                        value={formDataDirecto.cantidad_huespedes}
+                        onChange={(e) => {
+                          const cant = parseInt(e.target.value || 1);
+                          setFormDataDirecto((prev) => ({
+                            ...prev,
+                            cantidad_huespedes: cant
+                          }));
+                        }}
+                        required
+                      />
+                    </label>
+
+                    <label className="campo">
+                      <span className="label-texto">Cantidad de Maletas</span>
+                      <input type="number" min="0" name="cantidad_maletas" value={formDataDirecto.cantidad_maletas} onChange={manejarCambioDirecto} />
+                    </label>
+                  </section>
+
+                  <section className="grid-una-columna espacio-superior-corto">
+                    <label className="campo">
+                      <span className="label-texto">Agregar Recargos / Descuentos</span>
+                      <section className="contenedor-input-accion">
+                        <select value={recargoDirectoTemporal} onChange={(e) => setRecargoDirectoTemporal(e.target.value)} className="select-flexible">
+                          <option value="">Seleccionar recargo...</option>
+                          {recargosDisponibles.map((rec) => (
+                            <option key={rec.id_recargo} value={rec.id_recargo}>
+                              {rec.motivo_recargo} ({rec.tipo_calculo === 'Suma' ? '+' : '-'}{rec.tipo_operacion?.toLowerCase() === 'porcentaje' ? `${rec.monto}%` : `$${rec.monto}`})
+                            </option>
+                          ))}
+                        </select>
+                        <button type="button" className="boton-agregar boton-ancho-fijo" onClick={agregarRecargoDirecto}>+</button>
+                      </section>
+                    </label>
+
+                    {formDataDirecto.recargos_ids.length > 0 && (
+                      <ul className="lista-etiquetas-recargos">
+                        {formDataDirecto.recargos_ids.map((idR) => {
+                          const objR = recargosDisponibles.find((r) => String(r.id_recargo) === String(idR));
+                          return (
+                            <li key={idR} className="item-etiqueta-recargo">
+                              <span>{objR?.motivo_recargo}</span>
+                              <button type="button" onClick={() => removerRecargoDirecto(idR)} className="boton-remover-recargo">&times;</button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </section>
+
+                  <label className="campo campo-ancho-total espacio-superior-corto">
+                    <span className="label-texto">Observaciones / Novedades de Entrada</span>
+                    <textarea rows="2" name="observaciones" value={formDataDirecto.observaciones} onChange={manejarCambioDirecto} placeholder="Notas sobre el pago directo o peticiones especiales..." className="textarea-notificacion textarea-altura-corta" />
+                  </label>
+                </fieldset>
+
+                <footer className="acciones-formulario acciones-formulario-limpio">
+                  <button type="button" className="boton-cancelar" onClick={cerrarModalRegistroDirecto}>Cancelar</button>
+                  <button type="submit" className="boton-guardar">Revisar Desglose y Continuar &rarr;</button>
+                </footer>
+              </form>
+            ) : (
+              <div className="formulario-huesped">
+                <section className="tarjeta-resumen-estancia">
+                  <h3 className="titulo-resumen-estancia">Resumen de Llegada Directa y Check-in</h3>
+                  <p className="texto-resumen-item"><strong>Huésped:</strong> {huespedDirectoObj?.nombre || 'N/A'}</p>
+                  <p className="texto-resumen-item"><strong>Habitación:</strong> Hab. {formDataDirecto.codigo_habitacion}</p>
+                  <p className="texto-resumen-item"><strong>Fechas:</strong> Del {formDataDirecto.fecha_checkin} al {formDataDirecto.fecha_checkout} ({finanzasDirecto.noches} noche(s))</p>
+                  <p className="texto-resumen-item"><strong>Acompañantes:</strong> {Math.max(0, parseInt(formDataDirecto.cantidad_huespedes || 1) - 1)} persona(s)</p>
+                  <p className="texto-resumen-item"><strong>Maletas:</strong> {formDataDirecto.cantidad_maletas} equipaje(s)</p>
+                  <p className="texto-resumen-item"><strong>Monto Total (USD):</strong> <span className="monto-usd-destacado">{formatUSD(finanzasDirecto.totalUSD)}</span></p>
+                  <p className="texto-resumen-item"><strong>Monto Total (Bs):</strong> <span className="monto-bs-destacado">{formatBs(finanzasDirecto.totalBs)}</span></p>
+                </section>
+
+                <footer className="acciones-formulario acciones-formulario-distribuido">
+                  <button type="button" className="boton-cancelar" onClick={() => setPasoDirecto('EDITANDO')}>&larr; Volver</button>
+                  <button type="button" className="boton-guardar" onClick={guardarRegistroDirectoFinal}>
+                    Confirmar, Registrar y Ocupar Habitación
+                  </button>
+                </footer>
+              </div>
+            )}
           </article>
         </aside>
       )}

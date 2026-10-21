@@ -294,3 +294,162 @@
 .boton-limpiar-filtros-reserva:hover {
   background-color: #e2e8f0;
 }
+
+.grupo-botones-acciones-reserva {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.boton-secundario-barra {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-borde, #cbd5e1);
+  background-color: var(--color-superficie, #ffffff);
+  color: var(--color-texto-principal, #0f172a);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.boton-secundario-barra:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+/* ============================================
+   ESTILOS LIMPIOS PARA FORMULARIOS Y MODALES
+============================================ */
+.modal-ancho-medio {
+  max-width: 650px !important;
+}
+
+.grupo-campos-limpio {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.campo-ancho-total {
+  width: 100%;
+}
+
+.grid-dos-columnas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  width: 100%;
+}
+
+.grid-una-columna {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.espacio-superior-corto {
+  margin-top: 0.5rem;
+}
+
+.contenedor-input-accion {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.select-flexible {
+  flex: 1;
+}
+
+.boton-ancho-fijo {
+  padding: 0 0.75rem !important;
+}
+
+.lista-etiquetas-recargos {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.item-etiqueta-recargo {
+  background: #e2e8f0;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #0f172a;
+}
+
+.boton-remover-recargo {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: bold;
+  color: #64748b;
+}
+
+.boton-remover-recargo:hover {
+  color: #dc2626;
+}
+
+.textarea-altura-corta {
+  height: 60px !important;
+}
+
+.acciones-formulario-limpio {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  border: none;
+  padding: 0;
+}
+
+.acciones-formulario-distribuido {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  border: none;
+  padding: 0;
+}
+
+/* Tarjeta de Resumen */
+.tarjeta-resumen-estancia {
+  background: #f8fafc;
+  padding: 1.25rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.titulo-resumen-estancia {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 1rem;
+}
+
+.texto-resumen-item {
+  font-size: 0.85rem;
+  color: #475569;
+  margin-bottom: 0.4rem;
+}
+
+.monto-usd-destacado {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.monto-bs-destacado {
+  color: #2563eb;
+  font-weight: 700;
+}
