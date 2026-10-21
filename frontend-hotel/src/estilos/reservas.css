@@ -294,3 +294,25 @@
 .boton-limpiar-filtros-reserva:hover {
   background-color: #e2e8f0;
 }
+
+/* ============================================
+   ESTILOS PARA BOTÓN DE EXPORTAR EXCEL
+============================================ */
+.boton-exportar-excel {
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+  border-color: #16a34a !important;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.boton-exportar-excel:hover {
+  background-color: #15803d !important;
+}
+
+.boton-exportar-excel:active {
+  transform: scale(0.98);
+}

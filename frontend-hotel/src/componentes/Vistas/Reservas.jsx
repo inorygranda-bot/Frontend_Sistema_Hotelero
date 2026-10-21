@@ -138,6 +138,46 @@ export default function Reservas() {
     cargarDatos();
   }, []);
 
+  const exportarReporteExcel = async () => {
+    try {
+      const respuesta = await fetch(`${API_RESERVAS_URL}/reporte/excel`);
+      if (!respuesta.ok) throw new Error('No se pudo generar el reporte de reservas.');
+
+      const datos = await respuesta.json();
+
+      let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+      csvContent += "Clave Reserva,ID Huésped,Nombre Huésped,Documento,Habitación,Tipo Habitación,Piso,Check-in,Check-out,Cantidad Huéspedes,Estado,Monto Pagado (USD)\n";
+
+      datos.forEach((r) => {
+        const fila = [
+          r.clave,
+          r.id_huesped,
+          `"${r.nombre_huesped || ''}"`,
+          `"${r.documento || ''}"`,
+          r.habitacion_asignada,
+          `"${r.tipo_habitacion || ''}"`,
+          r.piso,
+          r.fecha_checkin ? r.fecha_checkin.split('T')[0] : '',
+          r.fecha_checkout ? r.fecha_checkout.split('T')[0] : '',
+          r.cantidad_huespedes,
+          r.estado,
+          r.monto_pagado
+        ].join(",");
+        csvContent += fila + "\r\n";
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `Reporte_Reservas_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error de Exportación', mensaje: err.message });
+    }
+  };
+
   const calcularDetalleFinanciero = (formData) => {
     const habitacionSeleccionada = habitaciones.find(
       (h) => String(h.codigo_habitacion) === String(formData.codigo_habitacion)
@@ -676,6 +716,14 @@ export default function Reservas() {
           </div>
 
           <div className="contenedor-botones-reservas">
+            <button 
+            type="button" 
+            onClick={exportarReporteExcel} 
+            className="boton-limpiar-filtros-reserva"
+            >
+              Exportar Excel
+            </button>
+
             {(filtroFechaInicio || filtroFechaFin || busqueda || filtroEstado !== 'TODAS') && (
               <button
                 type="button"

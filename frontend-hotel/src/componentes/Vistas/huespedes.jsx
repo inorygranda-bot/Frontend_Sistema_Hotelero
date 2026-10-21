@@ -57,6 +57,41 @@ export default function Huespedes() {
     }
   };
 
+  const exportarReporteExcel = async () => {
+    try {
+      const respuesta = await fetch(`${API_URL}/reporte/excel`);
+      if (!respuesta.ok) throw new Error('No se pudo generar el reporte de huéspedes.');
+
+      const datos = await respuesta.json();
+
+      let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+      csvContent += "ID Huésped,Tipo Documento,Número Documento,Nombre,Teléfono,Correo,Estado\n";
+
+      datos.forEach((h) => {
+        const fila = [
+          h.id_huesped,
+          h.tipo_documento,
+          `"${h.num_documento || ''}"`,
+          `"${h.nombre || ''}"`,
+          `"${h.telefono || ''}"`,
+          `"${h.correo || ''}"`,
+          h.estado
+        ].join(",");
+        csvContent += fila + "\r\n";
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `Reporte_Huespedes_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error de Exportación', mensaje: err.message });
+    }
+  };
+
   useEffect(() => {
     cargarHuespedes();
   }, []);
@@ -291,9 +326,19 @@ export default function Huespedes() {
           </label>
         </section>
 
-        <button type="button" className="boton-agregar" onClick={abrirModalCrear}>
-          <span>+ Agregar Huésped</span>
-        </button>
+   <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            type="button"
+            onClick={exportarReporteExcel}
+            className="boton-exportar-gris"
+          >
+            <span>Exportar Excel</span>
+          </button>
+
+          <button type="button" className="boton-agregar" onClick={abrirModalCrear}>
+            <span>+ Agregar Huésped</span>
+          </button>
+        </div>
       </section>
 
       {/* ESTADO CARGANDO (Loading) */}
