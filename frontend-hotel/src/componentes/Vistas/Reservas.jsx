@@ -239,11 +239,11 @@ export default function Reservas() {
 
       await cargarDatos();
       cerrarDetalle();
-      setAlerta({ 
-        abierto: true, 
-        tipo: 'exito', 
-        titulo: '¡Estado Actualizado!', 
-        mensaje: `La reserva N° ${reservaSeleccionada.codigo_reserva} fue marcada como ${nuevoEstado} exitosamente.` 
+      setAlerta({
+        abierto: true,
+        tipo: 'exito',
+        titulo: '¡Estado Actualizado!',
+        mensaje: `La reserva N° ${reservaSeleccionada.codigo_reserva} fue marcada como ${nuevoEstado} exitosamente.`
       });
     } catch (error) {
       setAlerta({ abierto: true, tipo: 'error', titulo: 'Error', mensaje: error.message });
@@ -271,7 +271,7 @@ export default function Reservas() {
   const abrirModalCheckin = (reserva) => {
     setReservaParaCheckin(reserva);
     const cantHuespedes = parseInt(reserva.cantidad_huespedes || 1);
-    
+
     const hoyStr = new Date().toISOString().split('T')[0];
     const fechaCheckinReserva = reserva.fecha_checkin ? reserva.fecha_checkin.split('T')[0] : hoyStr;
     const esAnticipado = hoyStr < fechaCheckinReserva;
@@ -541,7 +541,7 @@ export default function Reservas() {
     }
   };
 
-  const validarCampoReserva = (nombre, valor, habSeleccionada = null) => {
+  const validarCampoReserva = (nombre, valor, habSeleccionada = null, datosForm = formDataReserva) => {
     let error = '';
     const hoyStr = new Date().toISOString().split('T')[0];
 
@@ -549,11 +549,20 @@ export default function Reservas() {
     if (nombre === 'codigo_habitacion' && !valor) error = 'Debe seleccionar una habitación.';
 
     if (nombre === 'fecha_checkin') {
-      if (!valor) error = 'La fecha de check-in es obligatoria.';
-      else if (valor < hoyStr) error = 'La fecha de entrada no puede ser una fecha pasada.';
+      if (!valor) {
+        error = 'La fecha de check-in es obligatoria.';
+      } else if (valor < hoyStr) {
+        error = 'La fecha de entrada no puede ser una fecha pasada.';
+      }
     }
 
-    if (nombre === 'fecha_checkout' && !valor) error = 'La fecha de check-out es obligatoria.';
+    if (nombre === 'fecha_checkout') {
+      if (!valor) {
+        error = 'La fecha de check-out es obligatoria.';
+      } else if (datosForm.fecha_checkin && valor <= datosForm.fecha_checkin) {
+        error = 'La fecha de salida debe ser posterior a la fecha de check-in.';
+      }
+    }
 
     if (nombre === 'cantidad_huespedes') {
       if (!valor) error = 'La cantidad es obligatoria.';
@@ -567,13 +576,25 @@ export default function Reservas() {
 
   const manejarCambioFormulario = (e) => {
     const { name, value } = e.target;
+    const nuevosDatos = { ...formDataReserva, [name]: value };
     const habSeleccionada = habitaciones.find(
-      (h) => String(h.codigo_habitacion) === String(name === 'codigo_habitacion' ? value : formDataReserva.codigo_habitacion)
+      (h) => String(h.codigo_habitacion) === String(nuevosDatos.codigo_habitacion)
     );
 
-    setFormDataReserva((prev) => ({ ...prev, [name]: value }));
-    const mensajeError = validarCampoReserva(name, value, habSeleccionada);
-    setErroresForm((prev) => ({ ...prev, [name]: mensajeError }));
+    setFormDataReserva(nuevosDatos);
+
+    const mensajeError = validarCampoReserva(name, value, habSeleccionada, nuevosDatos);
+
+    let errorCheckoutExtra = erroresForm.fecha_checkout;
+    if (name === 'fecha_checkin' || name === 'fecha_checkout') {
+      errorCheckoutExtra = validarCampoReserva('fecha_checkout', nuevosDatos.fecha_checkout, habSeleccionada, nuevosDatos);
+    }
+
+    setErroresForm((prev) => ({
+      ...prev,
+      [name]: mensajeError,
+      fecha_checkout: errorCheckoutExtra
+    }));
   };
 
   const agregarRecargoSeleccionado = () => {
@@ -670,7 +691,7 @@ export default function Reservas() {
     const erroresTemp = {};
     Object.keys(formDataReserva).forEach((key) => {
       if (key === 'recargos_ids') return;
-      const err = validarCampoReserva(key, formDataReserva[key], habSeleccionada);
+      const err = validarCampoReserva(key, formDataReserva[key], habSeleccionada, formDataReserva);
       if (err) erroresTemp[key] = err;
     });
 
@@ -680,13 +701,17 @@ export default function Reservas() {
 
     if (Object.keys(erroresTemp).length > 0) {
       setErroresForm(erroresTemp);
-      setAlerta({ abierto: true, tipo: 'error', titulo: 'Formulario Incompleto', mensaje: 'Por favor, revise los campos marcados antes de continuar.' });
+      setAlerta({
+        abierto: true,
+        tipo: 'error',
+        titulo: 'Formulario Incompleto',
+        mensaje: 'Por favor, revise los campos marcados antes de continuar.'
+      });
       return;
     }
 
     setPasoFormulario('CONFIRMANDO');
   };
-
   const enviarFormularioReservaFinal = async (e) => {
     if (e) e.preventDefault();
     if (guardando) return;
@@ -928,10 +953,10 @@ export default function Reservas() {
           </div>
 
           <div className="contenedor-botones-reservas">
-            <button 
-            type="button" 
-            onClick={exportarReporteExcel} 
-            className="boton-limpiar-filtros-reserva"
+            <button
+              type="button"
+              onClick={exportarReporteExcel}
+              className="boton-limpiar-filtros-reserva"
             >
               Exportar Excel
             </button>
@@ -1113,7 +1138,13 @@ export default function Reservas() {
 
                     <label className="campo">
                       <span className="label-texto">Fecha Check-out *</span>
-                      <input type="date" name="fecha_checkout" value={formDataReserva.fecha_checkout} onChange={manejarCambioFormulario} className={erroresForm.fecha_checkout ? 'input-error' : ''} />
+                      <input
+                        type="date"
+                        name="fecha_checkout"
+                        value={formDataReserva.fecha_checkout}
+                        onChange={manejarCambioFormulario}
+                        className={erroresForm.fecha_checkout ? 'input-error' : ''}
+                      />
                       {erroresForm.fecha_checkout && <span className="texto-error-campo">{erroresForm.fecha_checkout}</span>}
                     </label>
                   </section>
@@ -1302,15 +1333,35 @@ export default function Reservas() {
             <footer className="acciones-modal-detalle">
               <button type="button" className="boton-cancelar" onClick={cerrarDetalle}>Cerrar</button>
               <nav className="grupo-botones-derecha">
-                <button type="button" className="boton-alerta-reintentar boton-eliminar-detalle" onClick={() => confirmarEliminacionReserva(reservaSeleccionada.codigo_reserva)}>Eliminar</button>
                 <button type="button" className="boton-secundario-barra" onClick={() => abrirModalEditarReserva(reservaSeleccionada)}>Editar</button>
-                {reservaSeleccionada.estado === 'PENDIENTE' && <button type="button" className="boton-agregar" onClick={() => cambiarEstadoReserva('CONFIRMADA')}>Confirmar</button>}
+
+                {(reservaSeleccionada.estado === 'PENDIENTE' || reservaSeleccionada.estado === 'CONFIRMADA') && (
+                  <button
+                    type="button"
+                    className="boton-secundario-barra boton-cancelar-reserva-alerta"
+                    onClick={() => cambiarEstadoReserva('CANCELADA')}
+                  >
+                    Cancelar Reserva
+                  </button>
+                )}
+
+                {reservaSeleccionada.estado === 'PENDIENTE' && (
+                  <button type="button" className="boton-agregar" onClick={() => cambiarEstadoReserva('CONFIRMADA')}>
+                    Confirmar
+                  </button>
+                )}
+
                 {reservaSeleccionada.estado === 'CONFIRMADA' && (
                   <button type="button" className="boton-agregar" onClick={() => abrirModalCheckin(reservaSeleccionada)}>
                     Realizar Check-in
                   </button>
                 )}
-                {reservaSeleccionada.estado === 'CHECKIN' && <button type="button" className="boton-alerta-reintentar" onClick={() => cambiarEstadoReserva('CHECKOUT')}>Check-out</button>}
+
+                {reservaSeleccionada.estado === 'CHECKIN' && (
+                  <button type="button" className="boton-guardar" onClick={() => cambiarEstadoReserva('CHECKOUT')}>
+                    Check-out
+                  </button>
+                )}
               </nav>
             </footer>
           </article>
@@ -1366,12 +1417,12 @@ export default function Reservas() {
                     </p>
                     <label className="campo campo-ancho-total espacio-superior-corto">
                       <span className="label-texto">¿Desea cambiar la fecha del check-in a hoy para actualizarla en la BD?</span>
-                      <input 
-                        type="date" 
-                        name="nuevaFechaCheckin" 
-                        value={formDataCheckin.nuevaFechaCheckin} 
-                        onChange={manejarCambioCheckin} 
-                        required 
+                      <input
+                        type="date"
+                        name="nuevaFechaCheckin"
+                        value={formDataCheckin.nuevaFechaCheckin}
+                        onChange={manejarCambioCheckin}
+                        required
                       />
                     </label>
                   </div>
