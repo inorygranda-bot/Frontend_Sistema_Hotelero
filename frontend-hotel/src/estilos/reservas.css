@@ -295,6 +295,25 @@
   background-color: #e2e8f0;
 }
 
+.boton-exportar-excel {
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+  border-color: #16a34a !important;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.boton-exportar-excel:hover {
+  background-color: #15803d !important;
+}
+
+.boton-exportar-excel:active {
+  transform: scale(0.98);
+}
+
 .grupo-botones-acciones-reserva {
   display: flex;
   align-items: center;
@@ -452,4 +471,26 @@
 .monto-bs-destacado {
   color: #2563eb;
   font-weight: 700;
+}
+
+.input-error {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+}
+
+.texto-error-campo {
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-top: 0.2rem;
+  display: block;
+}
+
+.boton-cancelar-reserva-alerta {
+  color: #dc2626 !important;
+  border-color: #fca5a5 !important;
+}
+
+.boton-cancelar-reserva-alerta:hover {
+  background-color: #fef2f2 !important;
+  border-color: #f87171 !important;
 }

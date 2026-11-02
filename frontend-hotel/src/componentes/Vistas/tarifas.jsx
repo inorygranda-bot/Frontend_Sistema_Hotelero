@@ -278,6 +278,17 @@ export default function Tarifas() {
 
     const usuarioSesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
     const idUsuarioActual = usuarioSesion.id_usuario || usuarioSesion.usuario?.id_usuario || 1;
+    const precioNum = parseFloat(formData.precio_base);
+
+    if (isNaN(precioNum) || precioNum <= 0) {
+      lanzarToast('El precio base debe ser mayor a cero (0). No se puede guardar con valor 0 o negativo.', 'error');
+      return;
+    }
+
+    if (!formData.nombre_tarifa.trim() || !formData.id_tipo_habitacion || !formData.id_temporada) {
+      lanzarToast('Por favor completa el nombre, el tipo de habitación y la temporada.', 'error');
+      return;
+    }
 
     try {
       setGuardando(true);
@@ -717,8 +728,22 @@ export default function Tarifas() {
                   <h3 className="rate-card-title">Precio, Ocupación y Huésped Extra</h3>
                   <section className="rate-grid-2">
                     <label className="rate-form-group">
-                      <span className="rate-label">Precio base (USD)</span>
-                      <input type="number" step="0.01" name="precio_base" className="rate-input" value={formData.precio_base} onChange={handleInputChange} required />
+                      <span className="rate-label">Precio base (USD) *</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        name="precio_base"
+                        className={`rate-input ${parseFloat(formData.precio_base) <= 0 ? 'input-error-rojo' : ''}`}
+                        value={formData.precio_base}
+                        onChange={handleInputChange}
+                        required
+                      />
+                      {parseFloat(formData.precio_base) <= 0 && (
+                        <span className="texto-error-input">
+                          El precio no puede ser cero ni negativo.
+                        </span>
+                      )}
                     </label>
                     <label className="rate-form-group">
                       <span className="rate-label">Equivalente (Bs)</span>
@@ -765,7 +790,12 @@ export default function Tarifas() {
             <footer className="modal-figma-footer">
               <button type="button" className="btn-action-cancel" onClick={() => setModalFormAbierto(false)}>Cancelar</button>
               <button type="button" className="btn-action-draft" onClick={() => guardarTarifa(true)} disabled={guardando}>Guardar como Borrador</button>
-              <button type="button" className="btn-action-create" onClick={() => guardarTarifa(false)} disabled={guardando}>
+              <button
+                type="button"
+                className="btn-action-create"
+                onClick={() => guardarTarifa(false)}
+                disabled={guardando || parseFloat(formData.precio_base) <= 0}
+              >
                 {guardando ? 'Guardando...' : 'Guardar tarifa activa'}
               </button>
             </footer>

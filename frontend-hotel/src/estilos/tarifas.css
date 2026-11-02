@@ -1796,3 +1796,31 @@
   color: #94a3b8;
   font-style: italic;
 }
+
+.rate-input.input-error-rojo {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+}
+
+.texto-error-input {
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-top: 0.2rem;
+  display: block;
+}
+
+.btn-action-create:disabled,
+.btn-action-draft:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background-color: #94a3b8 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.btn-action-create:disabled:hover,
+.btn-action-draft:disabled:hover {
+  background-color: #94a3b8 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
