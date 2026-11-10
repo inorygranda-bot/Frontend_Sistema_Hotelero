@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import '../../estilos/huespedes.css';
+import { API_BASE_URL } from '../../config/api';
 
-const API_USUARIOS = 'http://localhost:3000/api/usuarios';
-const API_ROLES = 'http://localhost:3000/api/roles';
+const API_USUARIOS = `${API_BASE_URL}/api/usuarios`;
+const API_ROLES = `${API_BASE_URL}/api/roles`;
 
 // Módulos definidos directamente para garantizar renderizado inmediato y robusto
 const MODULOS_ESTATICOS = [

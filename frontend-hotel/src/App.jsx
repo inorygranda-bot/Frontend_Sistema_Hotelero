@@ -11,6 +11,7 @@ import GestionUsuariosRoles from './componentes/Vistas/GestionUsuariosRoles';
 import Reservas from './componentes/Vistas/Reservas';
 import ControlEmergencia from './componentes/Vistas/ControlEmergencia';
 import Auditoria from './componentes/Vistas/Auditoria';
+import { API_BASE_URL } from './config/api';
 import './App.css';
 
 export default function App() {
@@ -30,8 +31,8 @@ export default function App() {
 
         // Consultar el estado más reciente de roles y usuarios en el backend
         const [respRoles, respUsuarios] = await Promise.all([
-          fetch('http://localhost:3000/api/roles').catch(() => null),
-          fetch('http://localhost:3000/api/usuarios').catch(() => null)
+          fetch(`${API_BASE_URL}/api/roles`).catch(() => null),
+          fetch(`${API_BASE_URL}/api/usuarios`).catch(() => null)
         ]);
 
         if (respRoles && respRoles.ok) {

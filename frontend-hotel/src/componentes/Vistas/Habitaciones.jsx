@@ -1,10 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import XLSX from 'xlsx-js-style';
 import '../../estilos/habitaciones.css';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { API_BASE_URL } from '../../config/api';
 
-const API_HABITACIONES_URL = 'http://localhost:3000/api/habitaciones';
-const API_TIPOS_URL = 'http://localhost:3000/api/tipos-habitacion';
+const API_HABITACIONES_URL = `${API_BASE_URL}/api/habitaciones`;
+const API_TIPOS_URL = `${API_BASE_URL}/api/tipos-habitacion`;
 
 export default function Habitaciones() {
+
+  const [modalReporteAbierto, setModalReporteAbierto] = useState(false);
+  const [formatoReporte, setFormatoReporte] = useState('EXCEL'); // 'EXCEL' | 'PDF' | 'CORREO'
+  const [filtroReporteEstado, setFiltroReporteEstado] = useState('TODAS');
+  const [filtroReporteTipo, setFiltroReporteTipo] = useState('TODOS');
+  const [filtroReportePiso, setFiltroReportePiso] = useState('TODOS');
+  const [filtroReporteBusqueda, setFiltroReporteBusqueda] = useState('');
+  const [correoDestino, setCorreoDestino] = useState('');
+  const [enviandoCorreo, setEnviandoCorreo] = useState(false);
+
   const [pestannaActiva, setPestannaActiva] = useState('HABITACIONES');
   const [habitaciones, setHabitaciones] = useState([]);
   const [tiposHabitacion, setTiposHabitacion] = useState([]);
@@ -12,6 +26,8 @@ export default function Habitaciones() {
   const [errorTabla, setErrorTabla] = useState(null);
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('TODAS');
+  const [filtroTipo, setFiltroTipo] = useState('TODOS');
+  const [filtroPiso, setFiltroPiso] = useState('TODOS');
 
   // Estados del modal de formulario de Habitaciones (Crear / Editar)
   const [modalFormAbierto, setModalFormAbierto] = useState(false);
@@ -68,11 +84,20 @@ export default function Habitaciones() {
   };
 
   const cargarDatos = async () => {
-    setLoading(true);
+   setLoading(true);
     setErrorTabla(null);
 
     try {
-      const respHabitaciones = await fetch(API_HABITACIONES_URL);
+      // 1. AGREGA ESTO: Construir los parámetros con los filtros actuales
+      const params = new URLSearchParams({
+        estado: filtroEstado,
+        tipo: filtroTipo,
+        piso: filtroPiso,
+        busqueda: busqueda
+      });
+
+      // 2. MODIFICA EL FETCH para incluir los query parameters:
+      const respHabitaciones = await fetch(`${API_HABITACIONES_URL}?${params.toString()}`);
       if (respHabitaciones.ok) {
         const datosHabitaciones = await respHabitaciones.json();
         setHabitaciones(Array.isArray(datosHabitaciones) ? datosHabitaciones : []);
@@ -102,7 +127,7 @@ export default function Habitaciones() {
 
   useEffect(() => {
     cargarDatos();
-  }, []);
+  }, [filtroEstado, filtroTipo, filtroPiso, busqueda]);
 
   const validarCampoHabitacion = (nombre, valor) => {
     let error = '';
@@ -437,12 +462,47 @@ export default function Habitaciones() {
     }
   };
 
+  const pisosUnicos = Array.from(
+    new Set(habitaciones.map((h) => (h.piso || '').trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+  const hayFiltrosHabitaciones =
+    busqueda.trim() !== '' ||
+    filtroEstado !== 'TODAS' ||
+    filtroTipo !== 'TODOS' ||
+    filtroPiso !== 'TODOS';
+
+  const limpiarFiltrosHabitaciones = () => {
+    setBusqueda('');
+    setFiltroEstado('TODAS');
+    setFiltroTipo('TODOS');
+    setFiltroPiso('TODOS');
+  };
+
   const habitacionesFiltradas = habitaciones.filter((h) => {
-    const coincideBusqueda = h.codigo_habitacion?.toString().includes(busqueda.trim());
+    const q = busqueda.trim().toLowerCase();
+    const coincideBusqueda =
+      !q ||
+      h.codigo_habitacion?.toString().toLowerCase().includes(q) ||
+      (h.nombre_tipo || h.tipo || '').toLowerCase().includes(q) ||
+      (h.nombre_huesped || '').toLowerCase().includes(q) ||
+      (h.amenidades || '').toLowerCase().includes(q);
+
     const coincideEstado =
       filtroEstado === 'TODAS' ||
       h.estado?.toLowerCase() === filtroEstado.toLowerCase();
-    return coincideBusqueda && coincideEstado;
+
+    const nombreTipoHab = (h.nombre_tipo || h.tipo || '').trim();
+    const coincideTipo =
+      filtroTipo === 'TODOS' ||
+      nombreTipoHab.toLowerCase() === filtroTipo.toLowerCase();
+
+    const pisoHab = (h.piso || '').trim();
+    const coincidePiso =
+      filtroPiso === 'TODOS' ||
+      pisoHab.toLowerCase() === filtroPiso.toLowerCase();
+
+    return coincideBusqueda && coincideEstado && coincideTipo && coincidePiso;
   });
 
   const tiposFiltrados = tiposHabitacion.filter((t) =>
@@ -458,6 +518,454 @@ export default function Habitaciones() {
   const cerrarDetalle = () => {
     setModalDetalleAbierto(false);
     setHabitacionSeleccionada(null);
+  };
+
+  const habitacionesReporteFiltradas = habitaciones.filter((h) => {
+    const q = filtroReporteBusqueda.trim().toLowerCase();
+    const coincideBusqueda =
+      !q ||
+      h.codigo_habitacion?.toString().toLowerCase().includes(q) ||
+      (h.nombre_tipo || h.tipo || '').toLowerCase().includes(q) ||
+      (h.nombre_huesped || '').toLowerCase().includes(q) ||
+      (h.amenidades || '').toLowerCase().includes(q);
+
+    const coincideEstado =
+      filtroReporteEstado === 'TODAS' ||
+      h.estado?.toLowerCase() === filtroReporteEstado.toLowerCase();
+
+    const nombreTipoHab = (h.nombre_tipo || h.tipo || '').trim();
+    const coincideTipo =
+      filtroReporteTipo === 'TODOS' ||
+      nombreTipoHab.toLowerCase() === filtroReporteTipo.toLowerCase();
+
+    const pisoHab = (h.piso || '').trim();
+    const coincidePiso =
+      filtroReportePiso === 'TODOS' ||
+      pisoHab.toLowerCase() === filtroReportePiso.toLowerCase();
+
+    return coincideBusqueda && coincideEstado && coincideTipo && coincidePiso;
+  });
+
+  const exportarExcelHabitaciones = async () => {
+    try {
+      const urlReporte = `${API_HABITACIONES_URL}/reporte/excel?estado=${encodeURIComponent(filtroReporteEstado)}&tipo=${encodeURIComponent(filtroReporteTipo)}&piso=${encodeURIComponent(filtroReportePiso)}&busqueda=${encodeURIComponent(filtroReporteBusqueda || '')}`;
+      const respuesta = await fetch(urlReporte);
+      if (!respuesta.ok) throw new Error('No se pudo obtener la data para el Excel.');
+      const datos = await respuesta.json();
+
+      if (!datos || datos.length === 0) {
+        setAlerta({
+          abierto: true,
+          tipo: 'error',
+          titulo: 'Sin registros',
+          mensaje: 'No hay habitaciones disponibles con los filtros seleccionados para generar el reporte Excel.'
+        });
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+      const hoy = new Date();
+      const fechaStr = hoy.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const horaStr = hoy.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+      const folioFecha = hoy.toISOString().slice(0, 10).replace(/-/g, '');
+
+      let nombreAutor = 'Administración Hotelera';
+      try {
+        const sesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+        nombreAutor = sesion.nombre || sesion.usuario?.nombre || 'Administración Hotelera';
+      } catch (e) {
+        nombreAutor = 'Administración Hotelera';
+      }
+
+      const estilosTitulo = {
+        font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "1E3A8A" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+
+      const estilosSubtitulo = {
+        font: { name: 'Segoe UI', sz: 10, italic: true, color: { rgb: "334155" } },
+        fill: { fgColor: { rgb: "F1F5F9" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+
+      const estilosHeader = {
+        font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "2563EB" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+          top: { style: 'thin', color: { rgb: "CBD5E1" } },
+          bottom: { style: 'thin', color: { rgb: "CBD5E1" } },
+          left: { style: 'thin', color: { rgb: "CBD5E1" } },
+          right: { style: 'thin', color: { rgb: "CBD5E1" } }
+        }
+      };
+
+      const estilosGrupo = {
+        font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: "1E3A8A" } },
+        fill: { fgColor: { rgb: "DBEAFE" } },
+        alignment: { horizontal: "left", vertical: "center" },
+        border: {
+          top: { style: 'thin', color: { rgb: "93C5FD" } },
+          bottom: { style: 'thin', color: { rgb: "93C5FD" } },
+          left: { style: 'thin', color: { rgb: "93C5FD" } },
+          right: { style: 'thin', color: { rgb: "93C5FD" } }
+        }
+      };
+
+      const estilosCelda = {
+        font: { name: 'Segoe UI', sz: 10, color: { rgb: "0F172A" } },
+        alignment: { vertical: "center" },
+        border: {
+          top: { style: 'thin', color: { rgb: "E2E8F0" } },
+          bottom: { style: 'thin', color: { rgb: "E2E8F0" } },
+          left: { style: 'thin', color: { rgb: "E2E8F0" } },
+          right: { style: 'thin', color: { rgb: "E2E8F0" } }
+        }
+      };
+
+      const estilosCeldaNumero = {
+        ...estilosCelda,
+        alignment: { horizontal: "right", vertical: "center" },
+        numFmt: "$#,##0.00"
+      };
+
+      const estilosCeldaCentro = {
+        ...estilosCelda,
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+
+      const estilosSubtotal = {
+        font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: "0F172A" } },
+        fill: { fgColor: { rgb: "F1F5F9" } },
+        alignment: { horizontal: "right", vertical: "center" },
+        border: {
+          top: { style: 'thin', color: { rgb: "94A3B8" } },
+          bottom: { style: 'medium', color: { rgb: "64748B" } },
+          left: { style: 'thin', color: { rgb: "CBD5E1" } },
+          right: { style: 'thin', color: { rgb: "CBD5E1" } }
+        }
+      };
+
+      const estilosGranTotal = {
+        font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: "1E3A8A" } },
+        fill: { fgColor: { rgb: "E0E7FF" } },
+        alignment: { horizontal: "right", vertical: "center" },
+        border: {
+          top: { style: 'thin', color: { rgb: "1E3A8A" } },
+          bottom: { style: 'double', color: { rgb: "1E3A8A" } },
+          left: { style: 'thin', color: { rgb: "93C5FD" } },
+          right: { style: 'thin', color: { rgb: "93C5FD" } }
+        }
+      };
+
+      const estilosPieControl = {
+        font: { name: 'Segoe UI', sz: 9, italic: true, color: { rgb: "64748B" } },
+        alignment: { horizontal: "right", vertical: "center" }
+      };
+
+      const headers = [
+        'Código Hab.',
+        'Piso',
+        'Tipo de Habitación',
+        'Capacidad',
+        'Estado',
+        'Huésped Actual',
+        'Check-in',
+        'Check-out',
+        'Tarifa Base (USD)'
+      ];
+
+      const crearFilaCombinada = (texto, estilo, numCols = 9) => {
+        const fila = [{ v: texto, s: estilo }];
+        for (let i = 1; i < numCols; i++) {
+          fila.push({ v: '', s: estilo });
+        }
+        return fila;
+      };
+
+      const filtrosAplicados = [];
+      if (filtroReporteTipo !== 'TODOS') filtrosAplicados.push(`Tipo: ${filtroReporteTipo}`);
+      if (filtroReportePiso !== 'TODOS') filtrosAplicados.push(`Piso: ${filtroReportePiso}`);
+      if (filtroReporteEstado !== 'TODAS') filtrosAplicados.push(`Estado: ${filtroReporteEstado}`);
+      if (filtroReporteBusqueda.trim()) filtrosAplicados.push(`Búsqueda: "${filtroReporteBusqueda.trim()}"`);
+      const resumenFiltros = filtrosAplicados.length > 0 ? filtrosAplicados.join(' • ') : 'Todos los registros';
+
+      const wsData = [
+        crearFilaCombinada('SISTEMA HOTELERO — INFORME DE OCUPACIÓN Y ESTADO DE HABITACIONES', estilosTitulo, 9),
+        crearFilaCombinada(`Generado el: ${fechaStr} ${horaStr} | Período: Corte en tiempo real | Módulo: Habitaciones | Filtros: [${resumenFiltros}] | Emitido por: ${nombreAutor} | Folio: #HAB-${folioFecha} | Pág. 1 de 1`, estilosSubtitulo, 9),
+        [],
+        headers.map((h) => ({ v: h, s: estilosHeader }))
+      ];
+
+      const merges = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }
+      ];
+
+      const gruposPorTipo = {};
+      datos.forEach((h) => {
+        const tipoKey = (h.tipo_habitacion || 'Sin Tipo Asignado').trim();
+        if (!gruposPorTipo[tipoKey]) {
+          gruposPorTipo[tipoKey] = [];
+        }
+        gruposPorTipo[tipoKey].push(h);
+      });
+
+      let totalHabGeneral = 0;
+      let totalOcupadasGeneral = 0;
+      let totalDisponiblesGeneral = 0;
+      let granTotalTarifaUSD = 0;
+
+      Object.entries(gruposPorTipo).forEach(([tipoNombre, listaGrupo]) => {
+        const filaGrupoIdx = wsData.length;
+        wsData.push(
+          crearFilaCombinada(
+            `▸ TIPO DE HABITACIÓN: ${tipoNombre.toUpperCase()} (${listaGrupo.length} ${listaGrupo.length === 1 ? 'habitación' : 'habitaciones'})`,
+            estilosGrupo,
+            9
+          )
+        );
+        merges.push({ s: { r: filaGrupoIdx, c: 0 }, e: { r: filaGrupoIdx, c: 8 } });
+
+        let ocupadasGrupo = 0;
+        let disponiblesGrupo = 0;
+        let sumaTarifaGrupo = 0;
+
+        listaGrupo.forEach((h, idx) => {
+          const precioBase = parseFloat(h.precio_base) || 0;
+          const estadoActual = h.estado || 'Disponible';
+          const estadoLower = estadoActual.toLowerCase();
+
+          if (estadoLower === 'ocupada') {
+            ocupadasGrupo++;
+            totalOcupadasGeneral++;
+          } else if (estadoLower === 'disponible') {
+            disponiblesGrupo++;
+            totalDisponiblesGeneral++;
+          }
+
+          sumaTarifaGrupo += precioBase;
+          granTotalTarifaUSD += precioBase;
+          totalHabGeneral++;
+
+          let colorEstado = "15803D"; 
+          if (estadoLower === 'ocupada') colorEstado = "1D4ED8"; 
+          else if (estadoLower === 'sucia') colorEstado = "B45309"; 
+          else if (estadoLower.includes('fuera')) colorEstado = "BE123C"; 
+
+          const filaEstilo = idx % 2 === 0
+            ? { fill: { fgColor: { rgb: "FFFFFF" } } }
+            : { fill: { fgColor: { rgb: "F8FAFC" } } };
+
+          const tieneHuesped = estadoLower === 'ocupada' && h.nombre_huesped;
+
+          wsData.push([
+            { v: `Hab. ${h.clave}`, s: { ...estilosCeldaCentro, ...filaEstilo, font: { ...estilosCeldaCentro.font, bold: true } } },
+            { v: String(h.piso || 'N/A'), s: { ...estilosCeldaCentro, ...filaEstilo } },
+            { v: tipoNombre, s: { ...estilosCelda, ...filaEstilo } },
+            { v: `${h.capacidad || 1} pers.`, s: { ...estilosCeldaCentro, ...filaEstilo } },
+            { v: estadoActual, s: { ...estilosCeldaCentro, ...filaEstilo, font: { ...estilosCeldaCentro.font, bold: true, color: { rgb: colorEstado } } } },
+            { v: tieneHuesped ? h.nombre_huesped : '—', s: { ...estilosCelda, ...filaEstilo } },
+            { v: estadoLower === 'ocupada' && h.fecha_checkin ? h.fecha_checkin : '—', s: { ...estilosCeldaCentro, ...filaEstilo } },
+            { v: estadoLower === 'ocupada' && h.fecha_checkout ? h.fecha_checkout : '—', s: { ...estilosCeldaCentro, ...filaEstilo } },
+            { v: precioBase, t: 'n', s: { ...estilosCeldaNumero, ...filaEstilo, font: { ...estilosCeldaNumero.font, bold: true } } }
+          ]);
+        });
+
+        const filaSubtotalIdx = wsData.length;
+        const otrasGrupo = listaGrupo.length - ocupadasGrupo - disponiblesGrupo;
+        const textoSubtotal = `Subtotal ${tipoNombre}: ${listaGrupo.length} hab.  |  Ocupadas: ${ocupadasGrupo}  •  Disponibles: ${disponiblesGrupo}${otrasGrupo > 0 ? `  •  Mant./Sucia: ${otrasGrupo}` : ''}  |  Subtotal Tarifa Base (USD):`;
+
+        const filaSub = [];
+        for (let c = 0; c < 8; c++) {
+          filaSub.push({ v: c === 0 ? textoSubtotal : '', s: estilosSubtotal });
+        }
+        filaSub.push({
+          v: sumaTarifaGrupo,
+          t: 'n',
+          s: { ...estilosSubtotal, numFmt: "$#,##0.00" }
+        });
+
+        wsData.push(filaSub);
+        merges.push({ s: { r: filaSubtotalIdx, c: 0 }, e: { r: filaSubtotalIdx, c: 7 } });
+      });
+
+      wsData.push([]);
+
+      const porcentajeOcupacionGlobal = totalHabGeneral > 0
+        ? ((totalOcupadasGeneral / totalHabGeneral) * 100).toFixed(1)
+        : '0.0';
+
+      const filaGranTotalIdx = wsData.length;
+      const textoGranTotal = `GRAN TOTAL CONSOLIDADO — Total Hab.: ${totalHabGeneral}  |  Ocupadas: ${totalOcupadasGeneral}  |  Disponibles: ${totalDisponiblesGeneral}  |  Ocupación Global: ${porcentajeOcupacionGlobal}%  |  Total Recaudable (USD):`;
+
+      const filaTotalGeneral = [];
+      for (let c = 0; c < 8; c++) {
+        filaTotalGeneral.push({ v: c === 0 ? textoGranTotal : '', s: estilosGranTotal });
+      }
+      filaTotalGeneral.push({
+        v: granTotalTarifaUSD,
+        t: 'n',
+        s: { ...estilosGranTotal, numFmt: "$#,##0.00" }
+      });
+
+      wsData.push(filaTotalGeneral);
+      merges.push({ s: { r: filaGranTotalIdx, c: 0 }, e: { r: filaGranTotalIdx, c: 7 } });
+
+      const filaPieIdx = wsData.length;
+      wsData.push(
+        crearFilaCombinada(
+          `Documento de Control Interno — Autoría: ${nombreAutor} | Folio: #HAB-${folioFecha} | Página 1 de 1`,
+          estilosPieControl,
+          9
+        )
+      );
+      merges.push({ s: { r: filaPieIdx, c: 0 }, e: { r: filaPieIdx, c: 8 } });
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!merges'] = merges;
+      ws['!cols'] = [
+        { wch: 14 },
+        { wch: 12 },
+        { wch: 24 },
+        { wch: 14 },
+        { wch: 18 },
+        { wch: 28 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 18 }
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Ocupación Habitaciones');
+      XLSX.writeFile(wb, `Reporte_Habitaciones_${hoy.toISOString().slice(0, 10)}.xlsx`);
+      setModalReporteAbierto(false);
+
+      setAlerta({
+        abierto: true,
+        tipo: 'exito',
+        titulo: '¡Reporte Exportado!',
+        mensaje: 'El informe operativo de habitaciones se ha generado y descargado exitosamente.'
+      });
+    } catch (err) {
+      console.error('Error al exportar Excel de habitaciones:', err);
+      setAlerta({
+        abierto: true,
+        tipo: 'error',
+        titulo: 'Error al Exportar',
+        mensaje: err.message || 'Ocurrió un error al intentar generar el reporte en Excel.'
+      });
+    }
+  };
+
+  const exportarReportePDFHabitaciones = async () => {
+    try {
+      const urlReporte = `${API_HABITACIONES_URL}/reporte/excel?estado=${encodeURIComponent(filtroReporteEstado)}&tipo=${encodeURIComponent(filtroReporteTipo)}&piso=${encodeURIComponent(filtroReportePiso)}&busqueda=${encodeURIComponent(filtroReporteBusqueda || '')}`;
+      const respuesta = await fetch(urlReporte);
+      if (!respuesta.ok) throw new Error('No se pudo obtener la data para el PDF.');
+      const datos = await respuesta.json();
+
+      if (!datos || datos.length === 0) {
+        setAlerta({ abierto: true, tipo: 'error', titulo: 'Sin registros', mensaje: 'No hay datos para generar el PDF con los filtros seleccionados.' });
+        return;
+      }
+
+      const doc = new jsPDF();
+      const hoy = new Date();
+      const fechaStr = hoy.toLocaleDateString('es-VE');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(30, 58, 138);
+      doc.text("SISTEMA HOTELERO — INFORME OPERATIVO DE HABITACIONES", 14, 20);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Fecha de emisión: ${fechaStr} | Estado: [${filtroReporteEstado}] | Tipo: [${filtroReporteTipo}]`, 14, 26);
+
+      const totalHabitaciones = datos.length;
+      const totalRecaudable = datos.reduce((acc, curr) => acc + parseFloat(curr.precio_base || 0), 0);
+
+      doc.setDrawColor(203, 213, 225);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(14, 32, 182, 16, 2, 2, 'FD');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`Total Habitaciones: ${totalHabitaciones}`, 18, 42);
+      doc.text(`Tarifa Base Acumulada: $${totalRecaudable.toFixed(2)} USD`, 100, 42);
+
+      const headers = [['Hab.', 'Piso', 'Tipo de Habitación', 'Capacidad', 'Estado', 'Tarifa Base']];
+      const rows = datos.map(h => [
+        `Hab. ${h.clave}`,
+        `Piso ${h.piso}`,
+        h.tipo_habitacion,
+        `${h.capacidad} pers.`,
+        h.estado,
+        `$${parseFloat(h.precio_base || 0).toFixed(2)}`
+      ]);
+
+      autoTable(doc, {
+        startY: 54,
+        head: headers,
+        body: rows,
+        theme: 'grid',
+        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 3 }
+      });
+
+      doc.save(`Reporte_Habitaciones_${hoy.toISOString().slice(0, 10)}.pdf`);
+      setModalReporteAbierto(false);
+
+      setAlerta({
+        abierto: true,
+        tipo: 'exito',
+        titulo: '¡PDF Generado!',
+        mensaje: 'El informe operativo en formato PDF se descargó correctamente.'
+      });
+    } catch (err) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error al generar PDF', mensaje: err.message });
+    }
+  };
+
+  const enviarReportePorCorreoHabitaciones = async () => {
+    if (!correoDestino || !correoDestino.trim()) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Correo Requerido', mensaje: 'Por favor, escriba una dirección de correo válida.' });
+      return;
+    }
+
+    setEnviandoCorreo(true);
+    try {
+      const respuesta = await fetch(`${API_HABITACIONES_URL}/reporte/correo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          correo_destino: correoDestino,
+          estado: filtroReporteEstado,
+          tipo: filtroReporteTipo,
+          piso: filtroReportePiso,
+          busqueda: filtroReporteBusqueda
+        })
+      });
+
+      const resData = await respuesta.json();
+      if (!respuesta.ok) throw new Error(resData.mensaje || 'Error al enviar el correo.');
+
+      setModalReporteAbierto(false);
+      setCorreoDestino('');
+      setAlerta({
+        abierto: true,
+        tipo: 'exito',
+        titulo: '¡Correo Despachado!',
+        mensaje: 'El reporte de habitaciones fue enviado exitosamente a la bandeja de entrada.'
+      });
+    } catch (err) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error de Envío', mensaje: err.message });
+    } finally {
+      setEnviandoCorreo(false);
+    }
   };
 
   return (
@@ -485,7 +993,7 @@ export default function Habitaciones() {
       </nav>
 
       <section className="barra-herramientas">
-        <section className="grupo-controles">
+        <section className="grupo-controles" style={{ flexWrap: 'wrap' }}>
           <label className="caja-busqueda">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
@@ -494,30 +1002,89 @@ export default function Habitaciones() {
             <input
               type="search"
               className="input-busqueda"
-              placeholder={pestannaActiva === 'HABITACIONES' ? "Buscar por N° de habitación..." : "Buscar tipo de habitación..."}
+              placeholder={pestannaActiva === 'HABITACIONES' ? "Buscar por N° hab., huésped o amenidad..." : "Buscar tipo de habitación..."}
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
             />
           </label>
 
           {pestannaActiva === 'HABITACIONES' && (
-            <label className="caja-filtro">
-              <select
-                className="select-filtro"
-                value={filtroEstado}
-                onChange={(e) => setFiltroEstado(e.target.value)}
-              >
-                <option value="TODAS">Estado: Todos</option>
-                <option value="Disponible">Disponibles</option>
-                <option value="Ocupada">Ocupadas</option>
-                <option value="Sucia">Sucias</option>
-                <option value="Fuera de servicio">Fuera de servicio</option>
-              </select>
-            </label>
+            <>
+              <label className="caja-filtro">
+                <select
+                  className="select-filtro"
+                  value={filtroTipo}
+                  onChange={(e) => setFiltroTipo(e.target.value)}
+                >
+                  <option value="TODOS">Tipo: Todos</option>
+                  {tiposHabitacion.map((t) => (
+                    <option key={t.id_tipo_habitacion} value={t.nombre_tipo}>
+                      {t.nombre_tipo}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="caja-filtro">
+                <select
+                  className="select-filtro"
+                  value={filtroPiso}
+                  onChange={(e) => setFiltroPiso(e.target.value)}
+                >
+                  <option value="TODOS">Piso: Todos</option>
+                  {pisosUnicos.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="caja-filtro">
+                <select
+                  className="select-filtro"
+                  value={filtroEstado}
+                  onChange={(e) => setFiltroEstado(e.target.value)}
+                >
+                  <option value="TODAS">Estado: Todos</option>
+                  <option value="Disponible">Disponibles</option>
+                  <option value="Ocupada">Ocupadas</option>
+                  <option value="Sucia">Sucias</option>
+                  <option value="Fuera de servicio">Fuera de servicio</option>
+                </select>
+              </label>
+
+              {hayFiltrosHabitaciones && (
+                <button
+                  type="button"
+                  className="boton-secundario-barra"
+                  onClick={limpiarFiltrosHabitaciones}
+                  title="Restablecer todos los filtros"
+                  style={{ padding: '0.55rem 0.9rem', fontSize: '0.82rem' }}
+                >
+                  ✕ Limpiar filtros
+                </button>
+              )}
+            </>
           )}
         </section>
 
         <section className="grupo-acciones-barra">
+          {pestannaActiva === 'HABITACIONES' && (
+            <button
+              type="button"
+              className="btn-export-excel"
+              onClick={() => {
+                setFiltroReporteEstado(filtroEstado);
+                setFiltroReporteTipo(filtroTipo);
+                setFiltroReportePiso(filtroPiso);
+                setFiltroReporteBusqueda(busqueda);
+                setModalReporteAbierto(true);
+              }}
+            >
+              <span>Exportar Reporte</span>
+            </button>
+          )}
           <button type="button" className="boton-secundario-barra" onClick={abrirModalCrearTipo}>
             <span>+ Tipo de Habitación</span>
           </button>
@@ -1005,6 +1572,176 @@ export default function Habitaciones() {
                 </button>
               </footer>
             </form>
+          </article>
+        </aside>
+      )}
+
+      {/* --- MODAL PANEL DE PERSONALIZACIÓN Y FILTROS DE REPORTE --- */}
+      {modalReporteAbierto && (
+        <aside className="overlay-modal" onClick={() => setModalReporteAbierto(false)}>
+          <article className="contenido-modal modal-detalle modal-reporte-ancho" onClick={(e) => e.stopPropagation()}>
+            <header className="encabezado-modal">
+              <h2 className="titulo-modal">Generador de Reportes — Habitaciones</h2>
+              <button type="button" className="boton-cerrar-modal" onClick={() => setModalReporteAbierto(false)}>
+                &times;
+              </button>
+            </header>
+
+            <section className="cuerpo-modal-reporte">
+              <p className="texto-descripcion-reporte">
+                Configure los filtros, tipo, piso y el formato de salida deseado para el reporte operativo de habitaciones.
+              </p>
+
+              <div className="contenedor-kpis-resumen">
+                <article className="tarjeta-kpi-mini">
+                  <span className="kpi-titulo-mini">Registros en Vista</span>
+                  <strong className="kpi-valor-mini">{habitacionesReporteFiltradas.length}</strong>
+                </article>
+                <article className="tarjeta-kpi-mini">
+                  <span className="kpi-titulo-mini">Estado Seleccionado</span>
+                  <strong className="kpi-valor-mini">{filtroReporteEstado}</strong>
+                </article>
+              </div>
+
+              <div className="grupo-campos">
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Filtrar por Estado</span>
+                  <select
+                    className="select-filtro"
+                    value={filtroReporteEstado}
+                    onChange={(e) => setFiltroReporteEstado(e.target.value)}
+                  >
+                    <option value="TODAS">Todos los Estados</option>
+                    <option value="Disponible">Disponibles</option>
+                    <option value="Ocupada">Ocupadas</option>
+                    <option value="Sucia">Sucias</option>
+                    <option value="Fuera de servicio">Fuera de servicio</option>
+                  </select>
+                </label>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Tipo de Habitación</span>
+                  <select
+                    className="select-filtro"
+                    value={filtroReporteTipo}
+                    onChange={(e) => setFiltroReporteTipo(e.target.value)}
+                  >
+                    <option value="TODOS">Todos los Tipos</option>
+                    {tiposHabitacion.map((t) => (
+                      <option key={t.id_tipo_habitacion} value={t.nombre_tipo}>
+                        {t.nombre_tipo}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Piso</span>
+                  <select
+                    className="select-filtro"
+                    value={filtroReportePiso}
+                    onChange={(e) => setFiltroReportePiso(e.target.value)}
+                  >
+                    <option value="TODOS">Todos los Pisos</option>
+                    {pisosUnicos.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Criterio de Búsqueda</span>
+                  <input
+                    type="text"
+                    className="input-busqueda"
+                    placeholder="Filtrar por N° hab., huésped o amenidad..."
+                    value={filtroReporteBusqueda}
+                    onChange={(e) => setFiltroReporteBusqueda(e.target.value)}
+                  />
+                </label>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Formato de Salida</span>
+                  <div className="grupo-opciones-reporte">
+                    <button
+                      type="button"
+                      className={`boton-opcion-formato ${formatoReporte === 'EXCEL' ? 'activo' : ''}`}
+                      onClick={() => setFormatoReporte('EXCEL')}
+                    >
+                      Excel
+                    </button>
+                    <button
+                      type="button"
+                      className={`boton-opcion-formato ${formatoReporte === 'PDF' ? 'activo' : ''}`}
+                      onClick={() => setFormatoReporte('PDF')}
+                    >
+                      PDF
+                    </button>
+                    <button
+                      type="button"
+                      className={`boton-opcion-formato ${formatoReporte === 'CORREO' ? 'activo' : ''}`}
+                      onClick={() => setFormatoReporte('CORREO')}
+                    >
+                      Correo
+                    </button>
+                  </div>
+                </label>
+
+                {formatoReporte === 'CORREO' && (
+                  <label className="campo ancho-completo">
+                    <span className="label-texto">Correo Destinatario *</span>
+                    <input
+                      type="email"
+                      className="input-busqueda"
+                      placeholder="ejemplo@correo.com"
+                      value={correoDestino}
+                      onChange={(e) => setCorreoDestino(e.target.value)}
+                    />
+                  </label>
+                )}
+              </div>
+            </section>
+
+            <footer className="acciones-modal-detalle">
+              <button
+                type="button"
+                className="boton-cancelar"
+                onClick={() => setModalReporteAbierto(false)}
+              >
+                Cancelar
+              </button>
+
+              <div className="contenedor-accion-principal">
+                {formatoReporte === 'EXCEL' && (
+                  <button
+                    type="button"
+                    className="boton-agregar boton-ancho-completo"
+                    onClick={exportarExcelHabitaciones}
+                  >
+                    Descargar Excel
+                  </button>
+                )}
+                {formatoReporte === 'PDF' && (
+                  <button
+                    type="button"
+                    className="boton-agregar boton-ancho-completo"
+                    onClick={exportarReportePDFHabitaciones}
+                  >
+                    Descargar PDF
+                  </button>
+                )}
+                {formatoReporte === 'CORREO' && (
+                  <button
+                    type="button"
+                    className="boton-guardar boton-ancho-completo"
+                    onClick={enviarReportePorCorreoHabitaciones}
+                    disabled={enviandoCorreo}
+                  >
+                    {enviandoCorreo ? 'Enviando...' : 'Enviar Reporte por Correo'}
+                  </button>
+                )}
+              </div>
+            </footer>
           </article>
         </aside>
       )}

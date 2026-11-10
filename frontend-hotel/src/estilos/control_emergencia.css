@@ -187,3 +187,141 @@
   background-color: #fef3c7;
   color: #b45309;
 }
+
+/* ==========================================================================
+   MODAL Y REPORTES DE EMERGENCIA
+   ========================================================================== */
+.modal-reporte-ancho {
+  max-width: 520px !important;
+}
+
+.cuerpo-modal-reporte {
+  padding: 1.25rem 1.5rem !important;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem !important;
+  background-color: #ffffff !important;
+}
+
+.texto-descripcion-reporte {
+  font-size: 0.875rem;
+  color: var(--color-texto-secundario);
+  margin: 0;
+}
+
+.contenedor-kpis-resumen {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.tarjeta-kpi-mini {
+  background-color: #f8fafc;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-borde);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.kpi-titulo-mini {
+  font-size: 0.75rem;
+  color: var(--color-texto-secundario);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.kpi-valor-mini {
+  font-size: 1.15rem;
+  color: var(--color-texto-principal);
+  font-weight: 700;
+}
+
+.grupo-opciones-reporte {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.boton-opcion-formato {
+  flex: 1;
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid var(--color-borde);
+  padding: 0.55rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.boton-opcion-formato:hover {
+  background-color: #e2e8f0;
+}
+
+.boton-opcion-formato.activo {
+  background-color: var(--color-primario);
+  color: #ffffff;
+  border-color: var(--color-primario);
+  font-weight: 600;
+}
+
+.boton-ancho-completo {
+  width: 100%;
+  justify-content: center;
+}
+
+.boton-reporte-header {
+  padding: 0.4rem 0.8rem !important;
+  font-size: 0.8rem !important;
+}
+
+.footer-accion-flex {
+  flex: 1;
+}
+
+/* ==========================================================================
+   ESTILOS DE LA TARJETA Y CABECERA DE LA TABLA DE EVACUACIÓN
+   ========================================================================== */
+.tarjeta-tabla {
+  background-color: var(--color-superficie, #ffffff);
+  border: 1px solid var(--color-borde, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: var(--sombra-suave, 0 1px 3px rgba(0, 0, 0, 0.04));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.cabecera-tabla-emergencia {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border-bottom: 1px solid var(--color-borde, #e2e8f0);
+  background-color: #f8fafc;
+}
+
+.grupo-acciones-header-reporte {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.texto-conteo-seguros {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #15803d;
+  background-color: #dcfce7;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #bbf7d0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}

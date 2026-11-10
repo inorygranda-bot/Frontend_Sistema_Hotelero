@@ -1,12 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import '../../estilos/control_emergencia.css';
+import XLSX from 'xlsx-js-style';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { API_BASE_URL } from '../../config/api';
+
+const API_EMERGENCIA_URL = `${API_BASE_URL}/api/emergencia`;
 
 export default function ControlEmergencia({ usuario }) {
+
+  const [modalReporteAbierto, setModalReporteAbierto] = useState(false);
+  const [formatoReporte, setFormatoReporte] = useState('EXCEL'); // 'EXCEL' | 'PDF' | 'CORREO'
+  const [filtroReporteEstadoSeguro, setFiltroReporteEstadoSeguro] = useState('TODOS'); // 'TODOS' | 'SEGURO' | 'PENDIENTE'
+  const [filtroReportePiso, setFiltroReportePiso] = useState('TODOS');
+  const [filtroReporteBusqueda, setFiltroReporteBusqueda] = useState('');
+  const [correoDestino, setCorreoDestino] = useState('');
+  const [enviandoCorreo, setEnviandoCorreo] = useState(false);
+
   const [estadoEmergencia, setEstadoEmergencia] = useState('NORMAL');
   const [modalPasswordAbierto, setModalPasswordAbierto] = useState(false);
   const [passwordAdmin, setPasswordAdmin] = useState('');
   const [errorPassword, setErrorPassword] = useState('');
-  
+
   const [mensajeAlerta, setMensajeAlerta] = useState('ATENCION: Se ha activado el protocolo de emergencia en el hotel. Por favor, dirijase con calma a la salida de emergencia más cercana.');
   const [enviandoMensaje, setEnviandoMensaje] = useState(false);
   const [cargandoDatos, setCargandoDatos] = useState(true);
@@ -17,13 +32,13 @@ export default function ControlEmergencia({ usuario }) {
   const sincronizarSistema = async () => {
     setCargandoDatos(true);
     try {
-      const respEstado = await fetch('http://localhost:3000/api/emergencia/estado');
+      const respEstado = await fetch(`${API_EMERGENCIA_URL}/estado`);
       if (respEstado.ok) {
         const datosEstado = await respEstado.json();
         setEstadoEmergencia(datosEstado.estado || 'NORMAL');
       }
 
-      const respHuespedes = await fetch('http://localhost:3000/api/emergencia/activos');
+      const respHuespedes = await fetch(`${API_EMERGENCIA_URL}/activos`);
       if (respHuespedes.ok) {
         const datosHuespedes = await respHuespedes.json();
         setHuespedesActivos(Array.isArray(datosHuespedes) ? datosHuespedes.map(h => ({ ...h, seguro: false })) : []);
@@ -39,6 +54,151 @@ export default function ControlEmergencia({ usuario }) {
     sincronizarSistema();
   }, []);
 
+  const pisosUnicosEmergencia = Array.from(
+    new Set(huespedesActivos.map((h) => (h.piso || '').trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+  const huespedesReporteFiltradas = huespedesActivos.filter((h) => {
+    const q = filtroReporteBusqueda.trim().toLowerCase();
+    const coincideBusqueda =
+      !q ||
+      h.nombre?.toLowerCase().includes(q) ||
+      h.num_documento?.toLowerCase().includes(q) ||
+      h.codigo_habitacion?.toString().toLowerCase().includes(q) ||
+      (h.telefono || '').toLowerCase().includes(q);
+
+    const coincideEstadoSeguro =
+      filtroReporteEstadoSeguro === 'TODOS' ||
+      (filtroReporteEstadoSeguro === 'SEGURO' && h.seguro) ||
+      (filtroReporteEstadoSeguro === 'PENDIENTE' && !h.seguro);
+
+    const coincidePiso =
+      filtroReportePiso === 'TODOS' ||
+      (h.piso || '').trim().toLowerCase() === filtroReportePiso.toLowerCase();
+
+    return coincideBusqueda && coincideEstadoSeguro && coincidePiso;
+  });
+
+  const exportarExcelEmergencia = () => {
+    if (huespedesReporteFiltradas.length === 0) {
+      setAlertaModal({ abierto: true, tipo: 'error', titulo: 'Sin registros', mensaje: 'No hay huéspedes con los filtros seleccionados.' });
+      return;
+    }
+
+    try {
+      const wb = XLSX.utils.book_new();
+      const hoy = new Date();
+      const fechaStr = hoy.toLocaleDateString('es-VE');
+
+      const estilosTitulo = { font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "DC2626" } }, alignment: { horizontal: "center" } };
+      const estilosHeader = { font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "2563EB" } }, alignment: { horizontal: "center" } };
+      const estilosCelda = { font: { name: 'Segoe UI', sz: 10, color: { rgb: "0F172A" } }, border: { top: { style: 'thin', color: { rgb: "E2E8F0" } }, bottom: { style: 'thin', color: { rgb: "E2E8F0" } }, left: { style: 'thin', color: { rgb: "E2E8F0" } }, right: { style: 'thin', color: { rgb: "E2E8F0" } } } };
+
+      const headers = ['#', 'Huésped', 'Documento', 'Habitación', 'Piso', 'Teléfono', 'Estado Evacuación'];
+      const wsData = [
+        [{ v: 'SISTEMA HOTELERO — REPORTE DE EVACUACIÓN Y CONTEO DE HUÉSPEDES', s: estilosTitulo }],
+        [{ v: `Fecha: ${fechaStr} | Estado Filtro: [${filtroReporteEstadoSeguro}]`, s: { font: { italic: true } } }],
+        [],
+        headers.map(h => ({ v: h, s: estilosHeader }))
+      ];
+
+      huespedesReporteFiltradas.forEach((h, idx) => {
+        wsData.push([
+          { v: idx + 1, s: estilosCelda },
+          { v: h.nombre, s: { ...estilosCelda, font: { bold: true } } },
+          { v: h.num_documento, s: estilosCelda },
+          { v: `Hab. ${h.codigo_habitacion}`, s: estilosCelda },
+          { v: `Piso ${h.piso}`, s: estilosCelda },
+          { v: h.telefono || 'N/A', s: estilosCelda },
+          { v: h.seguro ? 'SEGURO / EVACUADO' : 'PENDIENTE', s: { ...estilosCelda, font: { bold: true, color: { rgb: h.seguro ? "15803D" : "B45309" } } } }
+        ]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }];
+      ws['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 18 }, { wch: 22 }];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Reporte Emergencia');
+      XLSX.writeFile(wb, `Reporte_Emergencia_${hoy.toISOString().slice(0, 10)}.xlsx`);
+      setModalReporteAbierto(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const exportarReportePDFEmergencia = () => {
+    if (huespedesReporteFiltradas.length === 0) {
+      setAlertaModal({ abierto: true, tipo: 'error', titulo: 'Sin registros', mensaje: 'No hay huéspedes para generar el PDF.' });
+      return;
+    }
+
+    try {
+      const doc = new jsPDF();
+      const hoy = new Date();
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(220, 38, 38);
+      doc.text("SISTEMA HOTELERO — REPORTE DE EVACUACIÓN Y EMERGENCIA", 14, 20);
+
+      const headers = [['#', 'Huésped', 'Documento', 'Habitación', 'Piso', 'Estado']];
+      const rows = huespedesReporteFiltradas.map((h, i) => [
+        i + 1,
+        h.nombre,
+        h.num_documento,
+        `Hab. ${h.codigo_habitacion}`,
+        `Piso ${h.piso}`,
+        h.seguro ? 'Seguro / Evacuado' : 'Pendiente'
+      ]);
+
+      autoTable(doc, {
+        startY: 30,
+        head: headers,
+        body: rows,
+        theme: 'grid',
+        headStyles: { fillColor: [220, 38, 38], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 3 }
+      });
+
+      doc.save(`Reporte_Emergencia_${hoy.toISOString().slice(0, 10)}.pdf`);
+      setModalReporteAbierto(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const enviarReportePorCorreoEmergencia = async () => {
+    if (!correoDestino || !correoDestino.trim()) {
+      setAlertaModal({ abierto: true, tipo: 'error', titulo: 'Correo Requerido', mensaje: 'Escriba un correo válido.' });
+      return;
+    }
+
+    setEnviandoCorreo(true);
+    try {
+      const respuesta = await fetch(`${API_EMERGENCIA_URL}/reporte/correo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          correo_destino: correoDestino,
+          estado_seguro: filtroReporteEstadoSeguro,
+          piso: filtroReportePiso,
+          busqueda: filtroReporteBusqueda
+        })
+      });
+
+      const resData = await respuesta.json();
+      if (!respuesta.ok) throw new Error(resData.mensaje || 'Error al enviar correo.');
+
+      setModalReporteAbierto(false);
+      setCorreoDestino('');
+      setAlertaModal({ abierto: true, tipo: 'exito', titulo: 'Correo Despachado', mensaje: 'El reporte de emergencia fue enviado con éxito.' });
+    } catch (err) {
+      setAlertaModal({ abierto: true, tipo: 'error', titulo: 'Error', mensaje: err.message });
+    } finally {
+      setEnviandoCorreo(false);
+    }
+  };
+
   const intentarActivarAlerta = async (e) => {
     e.preventDefault();
 
@@ -48,7 +208,7 @@ export default function ControlEmergencia({ usuario }) {
     }
 
     try {
-      const respuesta = await fetch('http://localhost:3000/api/emergencia/activar', {
+      const respuesta = await fetch(`${API_EMERGENCIA_URL}/activar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -82,7 +242,7 @@ export default function ControlEmergencia({ usuario }) {
 
   const desactivarAlerta = async () => {
     try {
-      const respuesta = await fetch('http://localhost:3000/api/emergencia/desactivar', {
+      const respuesta = await fetch(`${API_EMERGENCIA_URL}/desactivar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_usuario: usuario?.id_usuario || 1 })
@@ -105,7 +265,6 @@ export default function ControlEmergencia({ usuario }) {
     }
   };
 
-  // ✅ Registrar en auditoría al marcar o desmarcar a un huésped como seguro
   const toggleMarcarSeguro = async (idHuesped) => {
     const huespedActual = huespedesActivos.find(h => h.id_huesped === idHuesped);
     if (!huespedActual) return;
@@ -118,7 +277,7 @@ export default function ControlEmergencia({ usuario }) {
     );
 
     try {
-      await fetch('http://localhost:3000/api/emergencia/marcar-seguro', {
+      await fetch(`${API_EMERGENCIA_URL}/marcar-seguro`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -135,7 +294,7 @@ export default function ControlEmergencia({ usuario }) {
   const enviarMensajeMasivo = async () => {
     setEnviandoMensaje(true);
     try {
-      const respuesta = await fetch('http://localhost:3000/api/emergencia/mensaje-masivo', {
+      const respuesta = await fetch(`${API_EMERGENCIA_URL}/mensaje-masivo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -191,8 +350,8 @@ export default function ControlEmergencia({ usuario }) {
             {estadoEmergencia === 'NORMAL' ? 'Estado del Sistema: Normal' : 'SISTEMA EN ESTADO DE EMERGENCIA / ALERTA'}
           </h2>
           <p>
-            {estadoEmergencia === 'NORMAL' 
-              ? 'Las operaciones hoteleras transcurren con normalidad. Los protocolos de seguridad estan en espera.' 
+            {estadoEmergencia === 'NORMAL'
+              ? 'Las operaciones hoteleras transcurren con normalidad. Los protocolos de seguridad estan en espera.'
               : 'Protocolo activo. Verifique el reporte de evacuacion y marque a los huespedes seguros.'}
           </p>
         </section>
@@ -271,11 +430,20 @@ export default function ControlEmergencia({ usuario }) {
           </article>
 
           <article className="tarjeta-tabla">
-            <header style={{ padding: '1.25rem 1rem 0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <header className="cabecera-tabla-emergencia">
               <h3 className="titulo-seccion-emergencia">Reporte de Evacuacion y Conteo de Huespedes</h3>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#16a34a' }}>
-                Seguros: {totalSeguros} de {totalHuespedes} ({porcentajeSeguros}%)
-              </span>
+              <div className="grupo-acciones-header-reporte">
+                <span className="texto-conteo-seguros">
+                  Seguros: {totalSeguros} de {totalHuespedes} ({porcentajeSeguros}%)
+                </span>
+                <button
+                  type="button"
+                  className="boton-secundario-barra boton-reporte-header"
+                  onClick={() => setModalReporteAbierto(true)}
+                >
+                  Exportar Reporte
+                </button>
+              </div>
             </header>
 
             <table className="tabla-seguridad-huespedes">
@@ -328,6 +496,132 @@ export default function ControlEmergencia({ usuario }) {
             </table>
           </article>
         </>
+      )}
+
+      {/* MODAL DE REPORTES DE EMERGENCIA */}
+      {modalReporteAbierto && (
+        <aside className="overlay-modal" onClick={() => setModalReporteAbierto(false)}>
+          <article className="contenido-modal modal-detalle modal-reporte-ancho" onClick={(e) => e.stopPropagation()}>
+            <header className="encabezado-modal">
+              <h2 className="titulo-modal">Generador de Reportes — Emergencia</h2>
+              <button type="button" className="boton-cerrar-modal" onClick={() => setModalReporteAbierto(false)}>&times;</button>
+            </header>
+
+            <section className="cuerpo-modal-reporte">
+              <p className="texto-descripcion-reporte">
+                Configure los filtros de evacuación y el formato de salida deseado para el reporte oficial de seguridad.
+              </p>
+
+              <div className="contenedor-kpis-resumen">
+                <article className="tarjeta-kpi-mini">
+                  <span className="kpi-titulo-mini">Registros en Vista</span>
+                  <strong className="kpi-valor-mini">{huespedesReporteFiltradas.length}</strong>
+                </article>
+                <article className="tarjeta-kpi-mini">
+                  <span className="kpi-titulo-mini">Estado Evacuación</span>
+                  <strong className="kpi-valor-mini">{filtroReporteEstadoSeguro}</strong>
+                </article>
+              </div>
+
+              <div className="grupo-campos">
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Filtrar por Estado de Evacuación</span>
+                  <select
+                    className="select-filtro"
+                    value={filtroReporteEstadoSeguro}
+                    onChange={(e) => setFiltroReporteEstadoSeguro(e.target.value)}
+                  >
+                    <option value="TODOS">Todos los Huéspedes</option>
+                    <option value="SEGURO">Solo Seguros / Evacuados</option>
+                    <option value="PENDIENTE">Solo Pendientes</option>
+                  </select>
+                </label>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Piso</span>
+                  <select
+                    className="select-filtro"
+                    value={filtroReportePiso}
+                    onChange={(e) => setFiltroReportePiso(e.target.value)}
+                  >
+                    <option value="TODOS">Todos los Pisos</option>
+                    {pisosUnicosEmergencia.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Criterio de Búsqueda</span>
+                  <input
+                    type="text"
+                    className="input-busqueda"
+                    placeholder="Buscar por nombre, documento o habitación..."
+                    value={filtroReporteBusqueda}
+                    onChange={(e) => setFiltroReporteBusqueda(e.target.value)}
+                  />
+                </label>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Formato de Salida</span>
+                  <div className="grupo-opciones-reporte">
+                    <button
+                      type="button"
+                      className={`boton-opcion-formato ${formatoReporte === 'EXCEL' ? 'activo' : ''}`}
+                      onClick={() => setFormatoReporte('EXCEL')}
+                    >
+                      Excel
+                    </button>
+                    <button
+                      type="button"
+                      className={`boton-opcion-formato ${formatoReporte === 'PDF' ? 'activo' : ''}`}
+                      onClick={() => setFormatoReporte('PDF')}
+                    >
+                      PDF
+                    </button>
+                    <button
+                      type="button"
+                      className={`boton-opcion-formato ${formatoReporte === 'CORREO' ? 'activo' : ''}`}
+                      onClick={() => setFormatoReporte('CORREO')}
+                    >
+                      Correo
+                    </button>
+                  </div>
+                </label>
+
+                {formatoReporte === 'CORREO' && (
+                  <label className="campo ancho-completo">
+                    <span className="label-texto">Correo Destinatario *</span>
+                    <input
+                      type="email"
+                      className="input-busqueda"
+                      placeholder="ejemplo@correo.com"
+                      value={correoDestino}
+                      onChange={(e) => setCorreoDestino(e.target.value)}
+                    />
+                  </label>
+                )}
+              </div>
+            </section>
+
+            <footer className="acciones-modal-detalle">
+              <button type="button" className="boton-cancelar" onClick={() => setModalReporteAbierto(false)}>Cancelar</button>
+              <div className="footer-accion-flex">
+                {formatoReporte === 'EXCEL' && (
+                  <button type="button" className="boton-agregar boton-ancho-completo" onClick={exportarExcelEmergencia}>Descargar Excel</button>
+                )}
+                {formatoReporte === 'PDF' && (
+                  <button type="button" className="boton-agregar boton-ancho-completo" onClick={exportarReportePDFEmergencia}>Descargar PDF</button>
+                )}
+                {formatoReporte === 'CORREO' && (
+                  <button type="button" className="boton-guardar boton-ancho-completo" onClick={enviarReportePorCorreoEmergencia} disabled={enviandoCorreo}>
+                    {enviandoCorreo ? 'Enviando...' : 'Enviar Reporte por Correo'}
+                  </button>
+                )}
+              </div>
+            </footer>
+          </article>
+        </aside>
       )}
 
       {/* MODAL CONTRASEÑA ADMINISTRADOR */}

@@ -1,17 +1,26 @@
 import React, { useState, useEffect } from 'react';
+import XLSX from 'xlsx-js-style';
 import '../../estilos/huespedes.css';
 import '../../estilos/habitaciones.css';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { API_BASE_URL } from '../../config/api';
 
-const API_RECARGOS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/recargos';
-const API_PAGOS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/pagos';
-const API_RESERVAS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/reservas';
-const API_BANCOS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/bancos';
-const API_TASA_BCV_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/tarifas/tasa-bcv';
+const API_RECARGOS_URL = `${API_BASE_URL}/api/recargos`;
+const API_PAGOS_URL = `${API_BASE_URL}/api/pagos`;
+const API_RESERVAS_URL = `${API_BASE_URL}/api/reservas`;
+const API_BANCOS_URL = `${API_BASE_URL}/api/bancos`;
+const API_TASA_BCV_URL = `${API_BASE_URL}/api/tarifas/tasa-bcv`;
 
 export default function Finanzas({ usuario }) {
     const [pestannaActiva, setPestannaActiva] = useState('RECARGOS'); // 'RECARGOS', 'PAGOS' o 'BANCOS'
 
     const [bcvRate, setBcvRate] = useState(872.39);
+
+    const [modalReporteAbierto, setModalReporteAbierto] = useState(false);
+    const [formatoReporte, setFormatoReporte] = useState('EXCEL'); // 'EXCEL' | 'PDF' | 'CORREO'
+    const [correoDestino, setCorreoDestino] = useState('');
+    const [enviandoCorreo, setEnviandoCorreo] = useState(false);
 
     // --- ESTADOS DE RECARGOS ---
     const [recargos, setRecargos] = useState([]);
@@ -42,6 +51,11 @@ export default function Finanzas({ usuario }) {
     const [busquedaPago, setBusquedaPago] = useState('');
     const [filtroEstadoPago, setFiltroEstadoPago] = useState('TODOS');
     const [filtroEstadoReserva, setFiltroEstadoReserva] = useState('TODAS');
+    const [filtroMetodoPago, setFiltroMetodoPago] = useState('TODOS');
+    const [filtroMonedaPago, setFiltroMonedaPago] = useState('TODAS');
+    const [filtroBancoPago, setFiltroBancoPago] = useState('TODOS');
+    const [fechaDesdePago, setFechaDesdePago] = useState('');
+    const [fechaHastaPago, setFechaHastaPago] = useState('');
 
     const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
     const [guardandoPago, setGuardandoPago] = useState(false);
@@ -60,6 +74,117 @@ export default function Finanzas({ usuario }) {
     const [reservaSeleccionadaHistorial, setReservaSeleccionadaHistorial] = useState(null);
 
     const [alerta, setAlerta] = useState({ abierto: false, tipo: 'exito', titulo: '', mensaje: '', accionConfirmar: null });
+
+    const exportarReportePDFFinanzas = () => {
+        const pagosParaExportar = pagosFiltrados;
+        if (!pagosParaExportar || pagosParaExportar.length === 0) {
+            setAlerta({ abierto: true, tipo: 'error', titulo: 'Sin transacciones', mensaje: 'No hay datos para generar el PDF con los filtros seleccionados.' });
+            return;
+        }
+
+        try {
+            const doc = new jsPDF();
+            const hoy = new Date();
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.setTextColor(30, 58, 138);
+            doc.text("SISTEMA HOTELERO — INFORME DE INGRESOS Y PAGOS", 14, 20);
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            doc.setTextColor(100, 116, 139);
+            doc.text(`Fecha: ${hoy.toLocaleDateString('es-VE')} | Método: [${filtroMetodoPago}] | Moneda: [${filtroMonedaPago}] | Estado: [${filtroEstadoPago}]`, 14, 26);
+
+            const totalTransacciones = pagosParaExportar.length;
+            const montoTotalUSD = pagosParaExportar.reduce((acc, p) => {
+                const equiv = p.moneda === 'VES' ? Number(p.monto) / bcvRate : Number(p.monto);
+                return acc + equiv;
+            }, 0);
+
+            doc.setDrawColor(203, 213, 225);
+            doc.setFillColor(248, 250, 252);
+            doc.roundedRect(14, 32, 182, 16, 2, 2, 'FD');
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.setTextColor(15, 23, 42);
+            doc.text(`Transacciones Filtradas: ${totalTransacciones}`, 18, 42);
+            doc.text(`Monto Consolidado: $${montoTotalUSD.toFixed(2)} USD`, 110, 42);
+
+            const headers = [['ID Pago', 'N° Reserva', 'Huésped', 'Método', 'Moneda', 'Monto Original']];
+            const rows = pagosParaExportar.map(p => [
+                `#PAG-${p.id_pago}`,
+                `N° ${p.codigo_reserva}`,
+                p.nombre_huesped || 'N/A',
+                p.metodo_pago,
+                p.moneda,
+                `$${Number(p.monto).toFixed(2)}`
+            ]);
+
+            autoTable(doc, {
+                startY: 54,
+                head: headers,
+                body: rows,
+                theme: 'grid',
+                headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
+                styles: { fontSize: 9, cellPadding: 4 }
+            });
+
+            doc.save(`Reporte_Ingresos_Finanzas_${hoy.toISOString().slice(0, 10)}.pdf`);
+            setModalReporteAbierto(false);
+
+            setAlerta({
+                abierto: true,
+                tipo: 'exito',
+                titulo: '¡PDF Generado!',
+                mensaje: 'El informe en PDF se descargó aplicando los filtros del sistema.'
+            });
+        } catch (err) {
+            setAlerta({ abierto: true, tipo: 'error', titulo: 'Error al generar PDF', mensaje: err.message });
+        }
+    };
+
+    const enviarReportePorCorreoFinanzas = async () => {
+        if (!correoDestino || !correoDestino.trim()) {
+            setAlerta({ abierto: true, tipo: 'error', titulo: 'Correo Requerido', mensaje: 'Escriba una dirección de correo válida.' });
+            return;
+        }
+
+        setEnviandoCorreo(true);
+        try {
+            const respuesta = await fetch(`${API_PAGOS_URL}/reporte/correo`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    correo_destino: correoDestino,
+                    metodo_pago: filtroMetodoPago,
+                    moneda: filtroMonedaPago,
+                    banco: filtroBancoPago,
+                    estado: filtroEstadoPago,
+                    fecha_desde: fechaDesdePago,
+                    fecha_hasta: fechaHastaPago,
+                    busqueda: busquedaPago
+                })
+            });
+
+            const resData = await respuesta.json();
+            if (!respuesta.ok) throw new Error(resData.mensaje || 'Error al enviar el correo.');
+
+            setModalReporteAbierto(false);
+            setCorreoDestino('');
+            setAlerta({
+                abierto: true,
+                tipo: 'exito',
+                titulo: '¡Correo Despachado!',
+                mensaje: 'El reporte financiero con los filtros aplicados fue enviado con éxito.'
+            });
+        } catch (err) {
+            setAlerta({ abierto: true, tipo: 'error', titulo: 'Error de Envío', mensaje: err.message });
+        } finally {
+            setEnviandoCorreo(false);
+        }
+    };
 
     const cargarDatosGenerales = async () => {
         try {
@@ -237,6 +362,428 @@ export default function Finanzas({ usuario }) {
         }
     };
 
+    const hayFiltrosPagos =
+        busquedaPago.trim() !== '' ||
+        filtroMetodoPago !== 'TODOS' ||
+        filtroMonedaPago !== 'TODAS' ||
+        filtroBancoPago !== 'TODOS' ||
+        filtroEstadoPago !== 'TODOS' ||
+        fechaDesdePago !== '' ||
+        fechaHastaPago !== '';
+
+    const limpiarFiltrosPagos = () => {
+        setBusquedaPago('');
+        setFiltroMetodoPago('TODOS');
+        setFiltroMonedaPago('TODAS');
+        setFiltroBancoPago('TODOS');
+        setFiltroEstadoPago('TODOS');
+        setFechaDesdePago('');
+        setFechaHastaPago('');
+    };
+
+    const obtenerEstadoReservaPorCodigo = (codReserva) => {
+        const resObj = reservas.find((r) => Number(r.codigo_reserva) === Number(codReserva));
+        if (!resObj) return 'Pendiente';
+        const totalPagado = pagos
+            .filter((p) => Number(p.codigo_reserva) === Number(resObj.codigo_reserva))
+            .reduce((s, p) => s + (p.moneda === 'VES' ? Number(p.monto) / bcvRate : Number(p.monto)), 0);
+        const montoTotal = calcularMontoTotal(resObj);
+        return obtenerEstadoPago(totalPagado, montoTotal);
+    };
+
+    const pagosFiltrados = pagos.filter((p) => {
+        const q = busquedaPago.trim().toLowerCase();
+        const resObj = reservas.find((r) => Number(r.codigo_reserva) === Number(p.codigo_reserva));
+        const nombreHuesped = (p.nombre_huesped || resObj?.nombre_huesped || '').toLowerCase();
+        const codReserva = String(p.codigo_reserva || '').toLowerCase();
+        const idPagoStr = `pag-${p.id_pago}`;
+        const metodo = (p.metodo_pago || '').toLowerCase();
+        const ref = (p.num_referencia || '').toLowerCase();
+        const banco = (p.banco_destino || '').toLowerCase();
+
+        const coincideBusqueda =
+            !q ||
+            nombreHuesped.includes(q) ||
+            codReserva.includes(q) ||
+            idPagoStr.includes(q) ||
+            metodo.includes(q) ||
+            ref.includes(q) ||
+            banco.includes(q);
+
+        const coincideMetodo =
+            filtroMetodoPago === 'TODOS' ||
+            (p.metodo_pago || '').trim().toLowerCase() === filtroMetodoPago.toLowerCase();
+
+        const coincideMoneda =
+            filtroMonedaPago === 'TODAS' ||
+            (p.moneda || '').trim().toUpperCase() === filtroMonedaPago.toUpperCase();
+
+        const coincideBanco =
+            filtroBancoPago === 'TODOS' ||
+            (p.banco_destino || '').trim().toLowerCase() === filtroBancoPago.toLowerCase();
+
+        const estadoRes = obtenerEstadoReservaPorCodigo(p.codigo_reserva);
+        const coincideEstadoCuenta =
+            filtroEstadoPago === 'TODOS' ||
+            estadoRes.toLowerCase() === filtroEstadoPago.toLowerCase();
+
+        const fechaPagoISO = p.fecha_pago ? String(p.fecha_pago).slice(0, 10) : '';
+        const coincideDesde = !fechaDesdePago || (fechaPagoISO && fechaPagoISO >= fechaDesdePago);
+        const coincideHasta = !fechaHastaPago || (fechaPagoISO && fechaPagoISO <= fechaHastaPago);
+
+        return (
+            coincideBusqueda &&
+            coincideMetodo &&
+            coincideMoneda &&
+            coincideBanco &&
+            coincideEstadoCuenta &&
+            coincideDesde &&
+            coincideHasta
+        );
+    });
+
+    const reservasFiltradas = reservas.filter((res) => {
+        const q = busquedaPago.trim().toLowerCase();
+        const totalPagado = pagos
+            .filter((p) => Number(p.codigo_reserva) === Number(res.codigo_reserva))
+            .reduce((s, p) => s + (p.moneda === 'VES' ? Number(p.monto) / bcvRate : Number(p.monto)), 0);
+        const montoTotal = calcularMontoTotal(res);
+        const estado = obtenerEstadoPago(totalPagado, montoTotal);
+
+        const coincideEstado =
+            filtroEstadoPago === 'TODOS' ||
+            estado.toLowerCase() === filtroEstadoPago.toLowerCase();
+
+        const pagosDeReservaFiltrados = pagosFiltrados.filter(
+            (p) => Number(p.codigo_reserva) === Number(res.codigo_reserva)
+        );
+
+        const hayFiltroTransaccionEspecifico =
+            filtroMetodoPago !== 'TODOS' ||
+            filtroMonedaPago !== 'TODAS' ||
+            filtroBancoPago !== 'TODOS' ||
+            fechaDesdePago !== '' ||
+            fechaHastaPago !== '';
+
+        if (hayFiltroTransaccionEspecifico && pagosDeReservaFiltrados.length === 0) {
+            return false;
+        }
+
+        const coincideBusquedaReserva =
+            !q ||
+            String(res.codigo_reserva || '').toLowerCase().includes(q) ||
+            (res.nombre_huesped || '').toLowerCase().includes(q) ||
+            pagosDeReservaFiltrados.length > 0;
+
+        return coincideEstado && coincideBusquedaReserva;
+    });
+
+    const exportarExcelFinanzas = () => {
+        const pagosParaExportar = pagosFiltrados;
+
+        if (!pagosParaExportar || pagosParaExportar.length === 0) {
+            setAlerta({
+                abierto: true,
+                tipo: 'error',
+                titulo: 'Sin transacciones para exportar',
+                mensaje: 'No existen pagos o transacciones registradas que coincidan con los filtros seleccionados para generar el reporte Excel.'
+            });
+            return;
+        }
+
+        try {
+            const wb = XLSX.utils.book_new();
+            const hoy = new Date();
+            const fechaStr = hoy.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const horaStr = hoy.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+            const folioFecha = hoy.toISOString().slice(0, 10).replace(/-/g, '');
+            const tasaActual = parseFloat(bcvRate) || 872.39;
+
+            let nombreAutor = usuario?.nombre || 'Auditoría Financiera';
+            if (!usuario?.nombre) {
+                try {
+                    const sesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+                    nombreAutor = sesion.nombre || sesion.usuario?.nombre || 'Auditoría Financiera';
+                } catch (e) {
+                    nombreAutor = 'Auditoría Financiera';
+                }
+            }
+
+            const estilosTitulo = {
+                font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "1E3A8A" } },
+                alignment: { horizontal: "center", vertical: "center" }
+            };
+
+            const estilosSubtitulo = {
+                font: { name: 'Segoe UI', sz: 10, italic: true, color: { rgb: "334155" } },
+                fill: { fgColor: { rgb: "F1F5F9" } },
+                alignment: { horizontal: "center", vertical: "center" }
+            };
+
+            const estilosHeader = {
+                font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "2563EB" } },
+                alignment: { horizontal: "center", vertical: "center", wrapText: true },
+                border: {
+                    top: { style: 'thin', color: { rgb: "CBD5E1" } },
+                    bottom: { style: 'thin', color: { rgb: "CBD5E1" } },
+                    left: { style: 'thin', color: { rgb: "CBD5E1" } },
+                    right: { style: 'thin', color: { rgb: "CBD5E1" } }
+                }
+            };
+
+            const estilosGrupo = {
+                font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: "1E3A8A" } },
+                fill: { fgColor: { rgb: "DBEAFE" } },
+                alignment: { horizontal: "left", vertical: "center" },
+                border: {
+                    top: { style: 'thin', color: { rgb: "93C5FD" } },
+                    bottom: { style: 'thin', color: { rgb: "93C5FD" } },
+                    left: { style: 'thin', color: { rgb: "93C5FD" } },
+                    right: { style: 'thin', color: { rgb: "93C5FD" } }
+                }
+            };
+
+            const estilosCelda = {
+                font: { name: 'Segoe UI', sz: 10, color: { rgb: "0F172A" } },
+                alignment: { vertical: "center" },
+                border: {
+                    top: { style: 'thin', color: { rgb: "E2E8F0" } },
+                    bottom: { style: 'thin', color: { rgb: "E2E8F0" } },
+                    left: { style: 'thin', color: { rgb: "E2E8F0" } },
+                    right: { style: 'thin', color: { rgb: "E2E8F0" } }
+                }
+            };
+
+            const estilosCeldaNumero = {
+                ...estilosCelda,
+                alignment: { horizontal: "right", vertical: "center" },
+                numFmt: "$#,##0.00"
+            };
+
+            const estilosCeldaCentro = {
+                ...estilosCelda,
+                alignment: { horizontal: "center", vertical: "center" }
+            };
+
+            const estilosSubtotal = {
+                font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: "0F172A" } },
+                fill: { fgColor: { rgb: "F1F5F9" } },
+                alignment: { horizontal: "right", vertical: "center" },
+                border: {
+                    top: { style: 'thin', color: { rgb: "94A3B8" } },
+                    bottom: { style: 'medium', color: { rgb: "64748B" } },
+                    left: { style: 'thin', color: { rgb: "CBD5E1" } },
+                    right: { style: 'thin', color: { rgb: "CBD5E1" } }
+                }
+            };
+
+            const estilosGranTotal = {
+                font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: "1E3A8A" } },
+                fill: { fgColor: { rgb: "E0E7FF" } },
+                alignment: { horizontal: "right", vertical: "center" },
+                border: {
+                    top: { style: 'thin', color: { rgb: "1E3A8A" } },
+                    bottom: { style: 'double', color: { rgb: "1E3A8A" } },
+                    left: { style: 'thin', color: { rgb: "93C5FD" } },
+                    right: { style: 'thin', color: { rgb: "93C5FD" } }
+                }
+            };
+
+            const estilosPieControl = {
+                font: { name: 'Segoe UI', sz: 9, italic: true, color: { rgb: "64748B" } },
+                alignment: { horizontal: "right", vertical: "center" }
+            };
+
+            const headers = [
+                'ID Pago',
+                'N° Reserva',
+                'Huésped Titular',
+                'Fecha Pago',
+                'Método',
+                'Banco / Destino',
+                'N° Referencia',
+                'Moneda',
+                'Monto Original',
+                'Equiv. USD ($)'
+            ];
+
+            const crearFilaCombinada = (texto, estilo, numCols = 10) => {
+                const fila = [{ v: texto, s: estilo }];
+                for (let i = 1; i < numCols; i++) {
+                    fila.push({ v: '', s: estilo });
+                }
+                return fila;
+            };
+
+            const filtrosActivos = [];
+            if (filtroMetodoPago !== 'TODOS') filtrosActivos.push(`Método: ${filtroMetodoPago}`);
+            if (filtroMonedaPago !== 'TODAS') filtrosActivos.push(`Moneda: ${filtroMonedaPago}`);
+            if (filtroBancoPago !== 'TODOS') filtrosActivos.push(`Banco: ${filtroBancoPago}`);
+            if (filtroEstadoPago !== 'TODOS') filtrosActivos.push(`Estado: ${filtroEstadoPago}`);
+            if (fechaDesdePago) filtrosActivos.push(`Desde: ${fechaDesdePago}`);
+            if (fechaHastaPago) filtrosActivos.push(`Hasta: ${fechaHastaPago}`);
+            if (busquedaPago.trim()) filtrosActivos.push(`Búsqueda: "${busquedaPago.trim()}"`);
+            const resumenFiltros = filtrosActivos.length > 0 ? filtrosActivos.join(' • ') : 'Todas las transacciones';
+
+            const wsData = [
+                crearFilaCombinada('SISTEMA HOTELERO — REPORTE DE INGRESOS Y ARQUEO DE TRANSACCIONES', estilosTitulo, 10),
+                crearFilaCombinada(`Generado el: ${fechaStr} ${horaStr} | Control Financiero y Auditoría de Caja | Filtros: [${resumenFiltros}] | Tasa BCV: 1 USD = ${tasaActual.toFixed(2)} Bs. | Emitido por: ${nombreAutor} | Folio: #FIN-${folioFecha} | Pág. 1 de 1`, estilosSubtitulo, 10),
+                [],
+                headers.map((h) => ({ v: h, s: estilosHeader }))
+            ];
+
+            const merges = [
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },
+                { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } }
+            ];
+
+            const gruposPorMetodo = {};
+            pagosParaExportar.forEach((p) => {
+                const metodoKey = (p.metodo_pago || 'Otros Métodos').trim();
+                if (!gruposPorMetodo[metodoKey]) {
+                    gruposPorMetodo[metodoKey] = [];
+                }
+                gruposPorMetodo[metodoKey].push(p);
+            });
+
+            let totalTransaccionesGeneral = 0;
+            let granTotalConsolidadoUSD = 0;
+
+            Object.entries(gruposPorMetodo).forEach(([metodoNombre, listaPagos]) => {
+                const filaGrupoIdx = wsData.length;
+                wsData.push(
+                    crearFilaCombinada(
+                        `▸ MÉTODO DE PAGO: ${metodoNombre.toUpperCase()} (${listaPagos.length} ${listaPagos.length === 1 ? 'transacción' : 'transacciones'})`,
+                        estilosGrupo,
+                        10
+                    )
+                );
+                merges.push({ s: { r: filaGrupoIdx, c: 0 }, e: { r: filaGrupoIdx, c: 9 } });
+
+                let subtotalMetodoUSD = 0;
+
+                listaPagos.forEach((p, idx) => {
+                    const reservaAsociada = reservas.find((r) => Number(r.codigo_reserva) === Number(p.codigo_reserva));
+                    const nombreHuesped = p.nombre_huesped || reservaAsociada?.nombre_huesped || 'Huésped Registrado';
+                    const fechaPagoStr = p.fecha_pago
+                        ? new Date(p.fecha_pago).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                        : 'N/A';
+
+                    const monedaUpper = (p.moneda || 'USD').toUpperCase();
+                    const montoOrig = parseFloat(p.monto) || 0;
+                    const equivUSD = monedaUpper === 'VES' ? montoOrig / tasaActual : montoOrig;
+
+                    subtotalMetodoUSD += equivUSD;
+                    granTotalConsolidadoUSD += equivUSD;
+                    totalTransaccionesGeneral++;
+
+                    const bancoDestino = p.banco_destino || (metodoNombre.toLowerCase().includes('efectivo') ? 'Caja Principal (Efectivo)' : 'N/A');
+                    const numReferencia = p.num_referencia || 'N/A';
+
+                    const filaEstilo = idx % 2 === 0
+                        ? { fill: { fgColor: { rgb: "FFFFFF" } } }
+                        : { fill: { fgColor: { rgb: "F8FAFC" } } };
+
+                    const formatoMontoOriginal = monedaUpper === 'VES' ? "Bs #,##0.00" : "$#,##0.00";
+                    const colorMoneda = monedaUpper === 'USD' ? "15803D" : "1D4ED8";
+
+                    wsData.push([
+                        { v: `#PAG-${p.id_pago}`, s: { ...estilosCeldaCentro, ...filaEstilo, font: { ...estilosCeldaCentro.font, bold: true } } },
+                        { v: `N° ${p.codigo_reserva}`, s: { ...estilosCeldaCentro, ...filaEstilo } },
+                        { v: nombreHuesped, s: { ...estilosCelda, ...filaEstilo, font: { ...estilosCelda.font, bold: true } } },
+                        { v: fechaPagoStr, s: { ...estilosCeldaCentro, ...filaEstilo } },
+                        { v: metodoNombre, s: { ...estilosCeldaCentro, ...filaEstilo } },
+                        { v: bancoDestino, s: { ...estilosCelda, ...filaEstilo } },
+                        { v: String(numReferencia), s: { ...estilosCeldaCentro, ...filaEstilo } },
+                        { v: monedaUpper, s: { ...estilosCeldaCentro, ...filaEstilo, font: { ...estilosCeldaCentro.font, bold: true, color: { rgb: colorMoneda } } } },
+                        { v: montoOrig, t: 'n', s: { ...estilosCeldaNumero, ...filaEstilo, numFmt: formatoMontoOriginal } },
+                        { v: equivUSD, t: 'n', s: { ...estilosCeldaNumero, ...filaEstilo, numFmt: "$#,##0.00", font: { ...estilosCeldaNumero.font, bold: true } } }
+                    ]);
+                });
+
+                const filaSubtotalIdx = wsData.length;
+                const textoSubtotal = `Subtotal ${metodoNombre}: ${listaPagos.length} ${listaPagos.length === 1 ? 'pago realizado' : 'pagos realizados'}  |  Subtotal Método (USD):`;
+
+                const filaSub = [];
+                for (let c = 0; c < 9; c++) {
+                    filaSub.push({ v: c === 0 ? textoSubtotal : '', s: estilosSubtotal });
+                }
+                filaSub.push({
+                    v: subtotalMetodoUSD,
+                    t: 'n',
+                    s: { ...estilosSubtotal, numFmt: "$#,##0.00" }
+                });
+
+                wsData.push(filaSub);
+                merges.push({ s: { r: filaSubtotalIdx, c: 0 }, e: { r: filaSubtotalIdx, c: 8 } });
+            });
+
+            wsData.push([]);
+
+            const filaGranTotalIdx = wsData.length;
+            const granTotalBs = granTotalConsolidadoUSD * tasaActual;
+            const textoGranTotal = `GRAN TOTAL CONSOLIDADO — Total Acumulado: ${totalTransaccionesGeneral} transacciones  |  Equiv. BCV: Bs ${granTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}  |  Gran Total Consolidado (USD):`;
+
+            const filaTotalGeneral = [];
+            for (let c = 0; c < 9; c++) {
+                filaTotalGeneral.push({ v: c === 0 ? textoGranTotal : '', s: estilosGranTotal });
+            }
+            filaTotalGeneral.push({
+                v: granTotalConsolidadoUSD,
+                t: 'n',
+                s: { ...estilosGranTotal, numFmt: "$#,##0.00" }
+            });
+
+            wsData.push(filaTotalGeneral);
+            merges.push({ s: { r: filaGranTotalIdx, c: 0 }, e: { r: filaGranTotalIdx, c: 8 } });
+
+            const filaPieIdx = wsData.length;
+            wsData.push(
+                crearFilaCombinada(
+                    `Documento de Auditoría Financiera — Emitido por: ${nombreAutor} | Folio: #FIN-${folioFecha} | Página 1 de 1`,
+                    estilosPieControl,
+                    10
+                )
+            );
+            merges.push({ s: { r: filaPieIdx, c: 0 }, e: { r: filaPieIdx, c: 9 } });
+
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            ws['!merges'] = merges;
+            ws['!cols'] = [
+                { wch: 12 },
+                { wch: 13 },
+                { wch: 26 },
+                { wch: 14 },
+                { wch: 22 },
+                { wch: 24 },
+                { wch: 18 },
+                { wch: 10 },
+                { wch: 18 },
+                { wch: 18 }
+            ];
+
+            XLSX.utils.book_append_sheet(wb, ws, 'Ingresos y Arqueo');
+            XLSX.writeFile(wb, `Reporte_Ingresos_Finanzas_${hoy.toISOString().slice(0, 10)}.xlsx`);
+
+            setAlerta({
+                abierto: true,
+                tipo: 'exito',
+                titulo: '¡Reporte Exportado!',
+                mensaje: 'El reporte financiero de ingresos y arqueo de transacciones se ha descargado exitosamente.'
+            });
+        } catch (err) {
+            console.error('Error al exportar Excel de finanzas:', err);
+            setAlerta({
+                abierto: true,
+                tipo: 'error',
+                titulo: 'Error al Exportar',
+                mensaje: 'Ocurrió un error al intentar generar el reporte financiero en Excel.'
+            });
+        }
+    };
+
     return (
         <section className="contenedor-huespedes">
             <header className="encabezado-vista">
@@ -314,7 +861,7 @@ export default function Finanzas({ usuario }) {
             {pestannaActiva === 'PAGOS' && (
                 <section className="contenedor-huespedes">
                     <section className="barra-herramientas">
-                        <section className="grupo-controles">
+                        <section className="grupo-controles" style={{ flexWrap: 'wrap' }}>
                             <label className="caja-busqueda">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <circle cx="11" cy="11" r="8" />
@@ -323,15 +870,130 @@ export default function Finanzas({ usuario }) {
                                 <input
                                     type="search"
                                     className="input-busqueda"
-                                    placeholder="Buscar reserva o huésped..."
+                                    placeholder="Buscar por N° reserva, huésped o ref..."
                                     value={busquedaPago}
                                     onChange={(e) => setBusquedaPago(e.target.value)}
                                 />
                             </label>
+
+                            <label className="caja-filtro">
+                                <select
+                                    className="select-filtro"
+                                    value={filtroMetodoPago}
+                                    onChange={(e) => setFiltroMetodoPago(e.target.value)}
+                                >
+                                    <option value="TODOS">Método: Todos</option>
+                                    <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                                    <option value="Pago Móvil">Pago Móvil</option>
+                                    <option value="Zelle">Zelle</option>
+                                    <option value="Efectivo">Efectivo</option>
+                                    <option value="Tarjeta">Tarjeta</option>
+                                </select>
+                            </label>
+
+                            <label className="caja-filtro">
+                                <select
+                                    className="select-filtro"
+                                    value={filtroMonedaPago}
+                                    onChange={(e) => setFiltroMonedaPago(e.target.value)}
+                                >
+                                    <option value="TODAS">Moneda: Todas</option>
+                                    <option value="USD">USD ($)</option>
+                                    <option value="VES">Bolívares (VES)</option>
+                                </select>
+                            </label>
+
+                            <label className="caja-filtro">
+                                <select
+                                    className="select-filtro"
+                                    value={filtroBancoPago}
+                                    onChange={(e) => setFiltroBancoPago(e.target.value)}
+                                >
+                                    <option value="TODOS">Banco: Todos</option>
+                                    {bancos.map((b) => (
+                                        <option key={b.id_banco} value={b.nombre_banco}>
+                                            {b.nombre_banco}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label className="caja-filtro">
+                                <select
+                                    className="select-filtro"
+                                    value={filtroEstadoPago}
+                                    onChange={(e) => setFiltroEstadoPago(e.target.value)}
+                                >
+                                    <option value="TODOS">Estado: Todos</option>
+                                    <option value="Pagado">Pagado</option>
+                                    <option value="Parcial">Parcial</option>
+                                    <option value="Pendiente">Pendiente</option>
+                                </select>
+                            </label>
+
+                            <label className="caja-filtro" title="Fecha inicial del pago">
+                                <span style={{ fontSize: '0.78rem', color: '#64748b', marginRight: '6px', fontWeight: 600 }}>Desde:</span>
+                                <input
+                                    type="date"
+                                    className="select-filtro"
+                                    value={fechaDesdePago}
+                                    onChange={(e) => setFechaDesdePago(e.target.value)}
+                                />
+                            </label>
+
+                            <label className="caja-filtro" title="Fecha final del pago">
+                                <span style={{ fontSize: '0.78rem', color: '#64748b', marginRight: '6px', fontWeight: 600 }}>Hasta:</span>
+                                <input
+                                    type="date"
+                                    className="select-filtro"
+                                    value={fechaHastaPago}
+                                    onChange={(e) => setFechaHastaPago(e.target.value)}
+                                />
+                            </label>
+
+                            {hayFiltrosPagos && (
+                                <button
+                                    type="button"
+                                    className="boton-secundario-barra"
+                                    onClick={limpiarFiltrosPagos}
+                                    title="Restablecer todos los filtros"
+                                    style={{ padding: '0.55rem 0.9rem', fontSize: '0.82rem' }}
+                                >
+                                    ✕ Limpiar filtros
+                                </button>
+                            )}
                         </section>
-                        <button type="button" className="boton-agregar" onClick={() => { setFormDataPago(estadoInicialPago); setModalPagoAbierto(true); }}>
-                            <span>+ Registrar Pago</span>
-                        </button>
+                        <section className="grupo-acciones-barra">
+                            <button
+                                type="button"
+                                className="btn-export-excel"
+                                onClick={() => setModalReporteAbierto(true)}>
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+
+                                >
+                                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+                                    <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+                                    <path d="M8 13h2" />
+                                    <path d="M14 13h2" />
+                                    <path d="M8 17h2" />
+                                    <path d="M14 17h2" />
+                                </svg>
+
+                                <span>Exportar Reporte</span>
+                            </button>
+                            <button type="button" className="boton-agregar" onClick={() => { setFormDataPago(estadoInicialPago); setModalPagoAbierto(true); }}>
+                                <span>+ Registrar Pago</span>
+                            </button>
+                        </section>
                     </section>
 
                     <article className="tarjeta-tabla">
@@ -348,26 +1010,34 @@ export default function Finanzas({ usuario }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {reservas.map(res => {
-                                    const totalPagado = pagos.filter(p => Number(p.codigo_reserva) === Number(res.codigo_reserva)).reduce((s, p) => s + (p.moneda === 'VES' ? Number(p.monto) / bcvRate : Number(p.monto)), 0);
-                                    const montoTotal = calcularMontoTotal(res);
-                                    const saldo = Math.max(0, montoTotal - totalPagado);
-                                    const estado = obtenerEstadoPago(totalPagado, montoTotal);
+                                {reservasFiltradas.length > 0 ? (
+                                    reservasFiltradas.map(res => {
+                                        const totalPagado = pagos.filter(p => Number(p.codigo_reserva) === Number(res.codigo_reserva)).reduce((s, p) => s + (p.moneda === 'VES' ? Number(p.monto) / bcvRate : Number(p.monto)), 0);
+                                        const montoTotal = calcularMontoTotal(res);
+                                        const saldo = Math.max(0, montoTotal - totalPagado);
+                                        const estado = obtenerEstadoPago(totalPagado, montoTotal);
 
-                                    return (
-                                        <tr key={res.codigo_reserva}>
-                                            <td>N° {res.codigo_reserva}</td>
-                                            <td>{res.nombre_huesped}</td>
-                                            <td>${montoTotal.toFixed(2)}</td>
-                                            <td>${totalPagado.toFixed(2)}</td>
-                                            <td>${saldo.toFixed(2)}</td>
-                                            <td><span className={`badge-estado ${estado === 'Pagado' ? 'badge-disponible' : 'badge-sucia'}`}>{estado}</span></td>
-                                            <td className="texto-derecha">
-                                                <button type="button" className="boton-ver-detalles" onClick={() => { setReservaSeleccionadaHistorial(res); setModalHistorialAbierto(true); }}>Ver Pagos</button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                        return (
+                                            <tr key={res.codigo_reserva}>
+                                                <td>N° {res.codigo_reserva}</td>
+                                                <td>{res.nombre_huesped}</td>
+                                                <td>${montoTotal.toFixed(2)}</td>
+                                                <td>${totalPagado.toFixed(2)}</td>
+                                                <td>${saldo.toFixed(2)}</td>
+                                                <td><span className={`badge-estado ${estado === 'Pagado' ? 'badge-disponible' : 'badge-sucia'}`}>{estado}</span></td>
+                                                <td className="texto-derecha">
+                                                    <button type="button" className="boton-ver-detalles" onClick={() => { setReservaSeleccionadaHistorial(res); setModalHistorialAbierto(true); }}>Ver Pagos</button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td colSpan="7" className="tabla-vacia">
+                                            No se encontraron registros que coincidan con los filtros seleccionados.
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </article>
@@ -622,6 +1292,177 @@ export default function Finanzas({ usuario }) {
                                 <button type="submit" className="boton-guardar" disabled={guardandoPago}>Registrar Transacción</button>
                             </footer>
                         </form>
+                    </article>
+                </aside>
+            )}
+
+            {modalReporteAbierto && (
+                <aside className="overlay-modal" onClick={() => setModalReporteAbierto(false)}>
+                    <article className="contenido-modal modal-detalle" onClick={(e) => e.stopPropagation()}>
+                        <header className="encabezado-modal">
+                            <h2 className="titulo-modal">Generador de Reportes — Pagos y Transacciones</h2>
+                            <button type="button" className="boton-cerrar-modal" onClick={() => setModalReporteAbierto(false)}>
+                                &times;
+                            </button>
+                        </header>
+
+                        <section className="cuerpo-modal-reporte">
+                            <p className="texto-descripcion-reporte">
+                                Configure los filtros activos y el formato de salida deseado para el arqueo financiero.
+                            </p>
+
+                            <section className="contenedor-kpis-resumen">
+                                <article className="tarjeta-kpi-mini">
+                                    <span className="kpi-titulo-mini">Transacciones en Vista</span>
+                                    <strong className="kpi-valor-mini">{pagosFiltrados.length}</strong>
+                                </article>
+                                <article className="tarjeta-kpi-mini">
+                                    <span className="kpi-titulo-mini">Filtro de Estado</span>
+                                    <strong className="kpi-valor-mini">{filtroEstadoPago}</strong>
+                                </article>
+                            </section>
+
+                            <fieldset className="grupo-campos">
+                                <label className="campo medio">
+                                    <span className="label-texto">Método de Pago</span>
+                                    <select
+                                        className="select-filtro"
+                                        value={filtroMetodoPago}
+                                        onChange={(e) => setFiltroMetodoPago(e.target.value)}
+                                    >
+                                        <option value="TODOS">Todos</option>
+                                        <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                                        <option value="Pago Móvil">Pago Móvil</option>
+                                        <option value="Zelle">Zelle</option>
+                                        <option value="Efectivo">Efectivo</option>
+                                        <option value="Tarjeta">Tarjeta</option>
+                                    </select>
+                                </label>
+
+                                <label className="campo medio">
+                                    <span className="label-texto">Moneda</span>
+                                    <select
+                                        className="select-filtro"
+                                        value={filtroMonedaPago}
+                                        onChange={(e) => setFiltroMonedaPago(e.target.value)}
+                                    >
+                                        <option value="TODAS">Todas</option>
+                                        <option value="USD">USD ($)</option>
+                                        <option value="VES">Bolívares (VES)</option>
+                                    </select>
+                                </label>
+
+                                <label className="campo medio">
+                                    <span className="label-texto">Estado de Cuenta</span>
+                                    <select
+                                        className="select-filtro"
+                                        value={filtroEstadoPago}
+                                        onChange={(e) => setFiltroEstadoPago(e.target.value)}
+                                    >
+                                        <option value="TODOS">Todos</option>
+                                        <option value="Pagado">Pagado</option>
+                                        <option value="Parcial">Parcial</option>
+                                        <option value="Pendiente">Pendiente</option>
+                                    </select>
+                                </label>
+
+                                <label className="campo medio">
+                                    <span className="label-texto">Banco Destino</span>
+                                    <select
+                                        className="select-filtro"
+                                        value={filtroBancoPago}
+                                        onChange={(e) => setFiltroBancoPago(e.target.value)}
+                                    >
+                                        <option value="TODOS">Todos</option>
+                                        {bancos.map((b) => (
+                                            <option key={b.id_banco} value={b.nombre_banco}>{b.nombre_banco}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                                {/* ========================================================== */}
+
+                                <label className="campo ancho-completo">
+                                    <span className="label-texto">Formato de Salida</span>
+                                    <section className="grupo-opciones-reporte">
+                                        <button
+                                            type="button"
+                                            className={`boton-opcion-formato ${formatoReporte === 'EXCEL' ? 'activo' : ''}`}
+                                            onClick={() => setFormatoReporte('EXCEL')}
+                                        >
+                                            Excel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`boton-opcion-formato ${formatoReporte === 'PDF' ? 'activo' : ''}`}
+                                            onClick={() => setFormatoReporte('PDF')}
+                                        >
+                                            PDF
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`boton-opcion-formato ${formatoReporte === 'CORREO' ? 'activo' : ''}`}
+                                            onClick={() => setFormatoReporte('CORREO')}
+                                        >
+                                            Correo
+                                        </button>
+                                    </section>
+                                </label>
+
+                                {formatoReporte === 'CORREO' && (
+                                    <label className="campo ancho-completo">
+                                        <span className="label-texto">Correo Destinatario *</span>
+                                        <input
+                                            type="email"
+                                            className="input-reporte-texto"
+                                            placeholder="ejemplo@correo.com"
+                                            value={correoDestino}
+                                            onChange={(e) => setCorreoDestino(e.target.value)}
+                                        />
+                                    </label>
+                                )}
+                            </fieldset>
+                        </section>
+
+                        <footer className="acciones-modal-detalle">
+                            <button
+                                type="button"
+                                className="boton-cancelar"
+                                onClick={() => setModalReporteAbierto(false)}
+                            >
+                                Cancelar
+                            </button>
+
+                            <section className="contenedor-accion-principal">
+                                {formatoReporte === 'EXCEL' && (
+                                    <button
+                                        type="button"
+                                        className="btn-export-excel boton-ancho-completo"
+                                        onClick={exportarExcelFinanzas}
+                                    >
+                                        Descargar Excel
+                                    </button>
+                                )}
+                                {formatoReporte === 'PDF' && (
+                                    <button
+                                        type="button"
+                                        className="btn-export-pdf boton-ancho-completo"
+                                        onClick={exportarReportePDFFinanzas}
+                                    >
+                                        Descargar PDF
+                                    </button>
+                                )}
+                                {formatoReporte === 'CORREO' && (
+                                    <button
+                                        type="button"
+                                        className="btn-enviar-correo boton-ancho-completo"
+                                        onClick={enviarReportePorCorreoFinanzas}
+                                        disabled={enviandoCorreo}
+                                    >
+                                        {enviandoCorreo ? 'Enviando...' : 'Enviar Reporte por Correo'}
+                                    </button>
+                                )}
+                            </section>
+                        </footer>
                     </article>
                 </aside>
             )}

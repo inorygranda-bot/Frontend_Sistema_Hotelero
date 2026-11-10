@@ -1,18 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import '../../estilos/reservas.css';
 import '../../estilos/habitaciones.css';
+import XLSX from 'xlsx-js-style';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { API_BASE_URL } from '../../config/api';
 
-const API_RESERVAS_URL = 'http://localhost:3000/api/reservas';
-const API_RESERVAS_TELEGRAM_URL = 'http://localhost:3000/api/reservas/telegram';
-const API_HUESPEDES_URL = 'http://localhost:3000/api/huespedes';
-const API_HABITACIONES_URL = 'http://localhost:3000/api/habitaciones';
-const API_RECARGOS_URL = 'http://localhost:3000/api/recargos';
-const API_TEMPORADAS_URL = 'http://localhost:3000/api/tarifas/temporadas';
-const API_TARIFAS_URL = 'http://localhost:3000/api/tarifas';
-const API_TASA_BCV_URL = 'http://localhost:3000/api/tarifas/tasa-bcv';
+const API_RESERVAS_URL = `${API_BASE_URL}/api/reservas`;
+const API_RESERVAS_TELEGRAM_URL = `${API_BASE_URL}/api/reservas/telegram`;
+const API_HUESPEDES_URL = `${API_BASE_URL}/api/huespedes`;
+const API_HABITACIONES_URL = `${API_BASE_URL}/api/habitaciones`;
+const API_RECARGOS_URL = `${API_BASE_URL}/api/recargos`;
+const API_TEMPORADAS_URL = `${API_BASE_URL}/api/tarifas/temporadas`;
+const API_TARIFAS_URL = `${API_BASE_URL}/api/tarifas`;
+const API_TASA_BCV_URL = `${API_BASE_URL}/api/tarifas/tasa-bcv`;
 
 export default function Reservas() {
+
   const [pestannaActiva, setPestannaActiva] = useState('RESERVAS');
+
+  const [modalReporteAbierto, setModalReporteAbierto] = useState(false);
+  const [formatoReporte, setFormatoReporte] = useState('EXCEL'); // 'EXCEL' | 'PDF' | 'CORREO'
+  const [filtroReporteEstado, setFiltroReporteEstado] = useState('TODAS');
+  const [filtroReporteBusqueda, setFiltroReporteBusqueda] = useState('');
+  const [filtroReporteFechaInicio, setFiltroReporteFechaInicio] = useState('');
+  const [filtroReporteFechaFin, setFiltroReporteFechaFin] = useState('');
+  const [correoDestino, setCorreoDestino] = useState('');
+  const [enviandoCorreo, setEnviandoCorreo] = useState(false);
+
+  const [filtroReporteOrigen, setFiltroReporteOrigen] = useState('TODAS');
 
   const [reservas, setReservas] = useState([]);
   const [reservasTelegram, setReservasTelegram] = useState([]);
@@ -94,6 +110,332 @@ export default function Reservas() {
     textoConfirmar: 'Aceptar'
   });
 
+  const exportarReportePDFReservas = async () => {
+    try {
+      const urlReporte = `${API_RESERVAS_URL}/reporte/excel?estado=${filtroReporteEstado}&origen=${filtroReporteOrigen}&busqueda=${encodeURIComponent(filtroReporteBusqueda)}&fecha_inicio=${filtroReporteFechaInicio}&fecha_fin=${filtroReporteFechaFin}`;
+      const respuesta = await fetch(urlReporte);
+      if (!respuesta.ok) throw new Error('No se pudo obtener la data para el PDF.');
+      const datos = await respuesta.json();
+
+      if (!datos || datos.length === 0) {
+        setAlerta({ abierto: true, tipo: 'error', titulo: 'Sin registros', mensaje: 'No hay datos para generar el PDF.' });
+        return;
+      }
+
+      const doc = new jsPDF();
+      const hoy = new Date();
+      const fechaStr = hoy.toLocaleDateString('es-VE');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(30, 58, 138);
+      doc.text("SISTEMA HOTELERO — INFORME GERENCIAL DE RESERVAS", 14, 20);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Fecha de emisión: ${fechaStr} | Filtro Estado: [${filtroReporteEstado}]`, 14, 26);
+
+      const totalReservas = datos.length;
+      const totalRecaudado = datos.reduce((acc, curr) => acc + parseFloat(curr.monto_pagado || 0), 0);
+
+      doc.setDrawColor(203, 213, 225);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(14, 32, 182, 16, 2, 2, 'FD');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`Total Reservas: ${totalReservas}`, 18, 42);
+      doc.text(`Monto Histórico Total: $${totalRecaudado.toFixed(2)} USD`, 105, 42);
+
+      const headers = [['Clave', 'Huésped', 'Documento', 'Habitación', 'Check-in', 'Check-out', 'Estado', 'Monto (USD)']];
+      const rows = datos.map(r => [
+        `#${r.clave}`,
+        r.nombre_huesped,
+        r.documento,
+        `Hab. ${r.habitacion_asignada}`,
+        r.fecha_checkin ? r.fecha_checkin.split('T')[0] : '',
+        r.fecha_checkout ? r.fecha_checkout.split('T')[0] : '',
+        r.estado,
+        `$${parseFloat(r.monto_pagado || 0).toFixed(2)}`
+      ]);
+
+      autoTable(doc, {
+        startY: 54,
+        head: headers,
+        body: rows,
+        theme: 'grid',
+        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 3 }
+      });
+
+      doc.save(`Reporte_Reservas_${hoy.toISOString().slice(0, 10)}.pdf`);
+      setModalReporteAbierto(false);
+
+      setAlerta({
+        abierto: true,
+        tipo: 'exito',
+        titulo: '¡PDF Generado!',
+        mensaje: 'El reporte ejecutivo en formato PDF se descargó correctamente.'
+      });
+    } catch (err) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error al generar PDF', mensaje: err.message });
+    }
+  };
+
+  const construirRazonVacio = () => {
+  let criterios = [];
+  if (filtroReporteEstado && filtroReporteEstado !== 'TODAS') criterios.push(`Estado: ${filtroReporteEstado}`);
+  if (filtroReporteOrigen && filtroReporteOrigen !== 'TODAS') criterios.push(`Canal: ${filtroReporteOrigen}`);
+  if (filtroReporteFechaInicio || filtroReporteFechaFin) criterios.push(`Rango de fechas`);
+  if (filtroReporteBusqueda && filtroReporteBusqueda.trim() !== '') criterios.push(`Búsqueda: "${filtroReporteBusqueda.trim()}"`);
+  
+  if (criterios.length === 0) {
+    return 'No existen registros de reservas almacenados en la base de datos actualmente.';
+  }
+  return `No se encontraron registros que coincidan con los filtros aplicados: ${criterios.join(', ')}. Por favor, amplíe o limpie los criterios de filtrado.`;
+};
+
+  const enviarReportePorCorreoReservas = async () => {
+    if (!correoDestino || !correoDestino.trim()) {
+    setAlerta({ abierto: true, tipo: 'error', titulo: 'Correo Requerido', mensaje: 'Por favor, escriba una dirección de correo válida.' });
+    return;
+  }
+
+  setEnviandoCorreo(true);
+  try {
+    const respuesta = await fetch(`${API_RESERVAS_URL}/reporte/correo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        correo_destino: correoDestino,
+        estado: filtroReporteEstado,
+        origen: filtroReporteOrigen, 
+        busqueda: filtroReporteBusqueda,
+        fecha_inicio: filtroReporteFechaInicio,
+        fecha_fin: filtroReporteFechaFin
+      })
+    });
+
+      const resData = await respuesta.json();
+      if (!respuesta.ok) throw new Error(resData.mensaje || 'Error al enviar el correo.');
+
+      setModalReporteAbierto(false);
+      setCorreoDestino('');
+      setAlerta({
+        abierto: true,
+        tipo: 'exito',
+        titulo: '¡Correo Despachado!',
+        mensaje: 'El reporte gerencial fue enviado exitosamente a la bandeja de entrada.'
+      });
+    } catch (err) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error de Envío', mensaje: err.message });
+    } finally {
+      setEnviandoCorreo(false);
+    }
+  };
+
+  const exportarReporteExcelReservas = async () => {
+  try {
+
+    // 1. Incluir el parámetro origen en la URL
+    const urlReporte = `${API_RESERVAS_URL}/reporte/excel?estado=${filtroReporteEstado}&origen=${filtroReporteOrigen}&busqueda=${encodeURIComponent(filtroReporteBusqueda)}&fecha_inicio=${filtroReporteFechaInicio}&fecha_fin=${filtroReporteFechaFin}`;
+    const respuesta = await fetch(urlReporte);
+    if (!respuesta.ok) throw new Error('No se pudo generar el reporte avanzado de reservas.');
+
+    const datos = await respuesta.json();
+    
+    // 2. Validación estricta de reporte vacío
+    if (!datos || datos.length === 0) {
+      const motivo = construirRazonVacio();
+      setModalReporteAbierto(false); // Cierra el modal de reportes
+      setAlerta({
+        abierto: true,
+        tipo: 'error',
+        titulo: 'No se puede generar un reporte vacío',
+        mensaje: motivo
+      });
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    const hoy = new Date();
+    const fechaStr = hoy.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const horaStr = hoy.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+    const folioFecha = hoy.toISOString().slice(0, 10).replace(/-/g, '');
+
+    let nombreAutor = 'Administración Hotelera';
+    try {
+      const sesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+      nombreAutor = sesion.nombre || sesion.usuario?.nombre || 'Administración Hotelera';
+    } catch (e) {
+      nombreAutor = 'Administración Hotelera';
+    }
+
+    const estilosTitulo = {
+      font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "1E3A8A" } },
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+
+    const estilosSubtitulo = {
+      font: { name: 'Segoe UI', sz: 10, italic: true, color: { rgb: "334155" } },
+      fill: { fgColor: { rgb: "F1F5F9" } },
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+
+    const estilosHeader = {
+      font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "2563EB" } },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: 'thin', color: { rgb: "CBD5E1" } },
+        bottom: { style: 'thin', color: { rgb: "CBD5E1" } },
+        left: { style: 'thin', color: { rgb: "CBD5E1" } },
+        right: { style: 'thin', color: { rgb: "CBD5E1" } }
+      }
+    };
+
+    const estilosCelda = {
+      font: { name: 'Segoe UI', sz: 10, color: { rgb: "0F172A" } },
+      alignment: { vertical: "center" },
+      border: {
+        top: { style: 'thin', color: { rgb: "E2E8F0" } },
+        bottom: { style: 'thin', color: { rgb: "E2E8F0" } },
+        left: { style: 'thin', color: { rgb: "E2E8F0" } },
+        right: { style: 'thin', color: { rgb: "E2E8F0" } }
+      }
+    };
+
+    const estilosCeldaCentro = {
+      ...estilosCelda,
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+
+    const estilosCeldaNumero = {
+      ...estilosCelda,
+      alignment: { horizontal: "right", vertical: "center" },
+      numFmt: "$#,##0.00"
+    };
+
+    const estilosGranTotal = {
+      font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: "1E3A8A" } },
+      fill: { fgColor: { rgb: "E0E7FF" } },
+      alignment: { horizontal: "right", vertical: "center" },
+      border: {
+        top: { style: 'thin', color: { rgb: "1E3A8A" } },
+        bottom: { style: 'double', color: { rgb: "1E3A8A" } },
+        left: { style: 'thin', color: { rgb: "93C5FD" } },
+        right: { style: 'thin', color: { rgb: "93C5FD" } }
+      }
+    };
+
+    // 3. Añadir la columna "Canal Origen" en los headers (13 columnas en total)
+    const headers = [
+      'Clave Reserva',
+      'ID Huésped',
+      'Nombre y Apellido',
+      'Documento',
+      'Habitación',
+      'Tipo Habitación',
+      'Piso',
+      'Canal Origen',
+      'Check-in',
+      'Check-out',
+      'Huéspedes',
+      'Estado',
+      'Monto Pagado (USD)'
+    ];
+
+    const crearFilaCombinada = (texto, estilo, numCols = 13) => {
+      const fila = [{ v: texto, s: estilo }];
+      for (let i = 1; i < numCols; i++) {
+        fila.push({ v: '', s: estilo });
+      }
+      return fila;
+    };
+
+    const resumenFiltros = `Estado: ${filtroReporteEstado} | Canal: ${filtroReporteOrigen} ${filtroReporteBusqueda ? `| Búsqueda: "${filtroReporteBusqueda}"` : ''}`;
+
+    const wsData = [
+      crearFilaCombinada('SISTEMA HOTELERO — REPORTE OFICIAL DE GESTIÓN DE RESERVAS', estilosTitulo, 13),
+      crearFilaCombinada(`Generado el: ${fechaStr} ${horaStr} | Filtros: [${resumenFiltros}] | Emitido por: ${nombreAutor} | Folio: #RES-${folioFecha}`, estilosSubtitulo, 13),
+      [],
+      headers.map((h) => ({ v: h, s: estilosHeader }))
+    ];
+
+    const merges = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 12 } }
+    ];
+
+    let sumaTotalPagado = 0;
+
+    datos.forEach((r, idx) => {
+      const pagado = parseFloat(r.monto_pagado) || 0;
+      sumaTotalPagado += pagado;
+
+      const filaEstilo = idx % 2 === 0
+        ? { fill: { fgColor: { rgb: "FFFFFF" } } }
+        : { fill: { fgColor: { rgb: "F8FAFC" } } };
+
+      wsData.push([
+        { v: `#${r.clave}`, s: { ...estilosCeldaCentro, ...filaEstilo } },
+        { v: r.id_huesped, s: { ...estilosCeldaCentro, ...filaEstilo } },
+        { v: r.nombre_huesped, s: { ...estilosCelda, ...filaEstilo, font: { ...estilosCelda.font, bold: true } } },
+        { v: r.documento, s: { ...estilosCeldaCentro, ...filaEstilo } },
+        { v: r.habitacion_asignada, s: { ...estilosCeldaCentro, ...filaEstilo } },
+        { v: r.tipo_habitacion, s: { ...estilosCelda, ...filaEstilo } },
+        { v: r.piso, s: { ...estilosCeldaCentro, ...filaEstilo } },
+        { v: r.origen, s: { ...estilosCeldaCentro, ...filaEstilo, font: { ...estilosCeldaCentro.font, bold: true, color: { rgb: "2563EB" } } } },
+        { v: r.fecha_checkin ? r.fecha_checkin.split('T')[0] : '', s: { ...estilosCeldaCentro, ...filaEstilo } },
+        { v: r.fecha_checkout ? r.fecha_checkout.split('T')[0] : '', s: { ...estilosCeldaCentro, ...filaEstilo } },
+        { v: parseInt(r.cantidad_huespedes || 1), t: 'n', s: { ...estilosCeldaCentro, ...filaEstilo } },
+        { v: r.estado, s: { ...estilosCeldaCentro, ...filaEstilo, font: { ...estilosCeldaCentro.font, bold: true } } },
+        { v: pagado, t: 'n', s: { ...estilosCeldaNumero, ...filaEstilo } }
+      ]);
+    });
+
+    wsData.push([]);
+
+    const filaTotalIdx = wsData.length;
+    const textoGranTotal = `TOTALES GENERALES — Total Reservas: ${datos.length}  |  Monto Total Acumulado (USD):`;
+
+    const filaTotal = [];
+    for (let c = 0; c < 12; c++) {
+      filaTotal.push({ v: c === 0 ? textoGranTotal : '', s: estilosGranTotal });
+    }
+    filaTotal.push({
+      v: sumaTotalPagado,
+      t: 'n',
+      s: { ...estilosGranTotal, numFmt: "$#,##0.00" }
+    });
+
+    wsData.push(filaTotal);
+    merges.push({ s: { r: filaTotalIdx, c: 0 }, e: { r: filaTotalIdx, c: 11 } });
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!merges'] = merges;
+    ws['!cols'] = [
+      { wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 16 }, { wch: 12 }, { wch: 20 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 22 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Reporte Reservas');
+    XLSX.writeFile(wb, `Reporte_Reservas_${hoy.toISOString().slice(0, 10)}.xlsx`);
+
+    setModalReporteAbierto(false);
+    setAlerta({
+      abierto: true,
+      tipo: 'exito',
+      titulo: '¡Reporte Excel Generado!',
+      mensaje: 'El informe detallado de reservas con filtros aplicados se descargó con éxito.'
+    });
+  } catch (err) {
+    setAlerta({ abierto: true, tipo: 'error', titulo: 'Error de Exportación', mensaje: err.message });
+  }
+};
+
   const cargarDatos = async () => {
     setCargando(true);
     setErrorTabla(null);
@@ -101,7 +443,7 @@ export default function Reservas() {
     try {
       const [respReservas, respTelegram, respHuespedes, respHabitaciones, respRecargos, respTemporadas, respTarifas, respBcv] = await Promise.all([
         fetch(API_RESERVAS_URL).catch(() => ({ ok: false })),
-        fetch(API_RESERVAS_TELEGRAM_URL).catch(() => ({ ok: false })),
+        fetch(`${API_RESERVAS_TELEGRAM_URL}/listar`).catch(() => ({ ok: false })),
         fetch(API_HUESPEDES_URL).catch(() => ({ ok: false })),
         fetch(API_HABITACIONES_URL).catch(() => ({ ok: false })),
         fetch(API_RECARGOS_URL).catch(() => ({ ok: false })),
@@ -160,46 +502,6 @@ export default function Reservas() {
   useEffect(() => {
     cargarDatos();
   }, []);
-
-  const exportarReporteExcel = async () => {
-    try {
-      const respuesta = await fetch(`${API_RESERVAS_URL}/reporte/excel`);
-      if (!respuesta.ok) throw new Error('No se pudo generar el reporte de reservas.');
-
-      const datos = await respuesta.json();
-
-      let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-      csvContent += "Clave Reserva,ID Huésped,Nombre Huésped,Documento,Habitación,Tipo Habitación,Piso,Check-in,Check-out,Cantidad Huéspedes,Estado,Monto Pagado (USD)\n";
-
-      datos.forEach((r) => {
-        const fila = [
-          r.clave,
-          r.id_huesped,
-          `"${r.nombre_huesped || ''}"`,
-          `"${r.documento || ''}"`,
-          r.habitacion_asignada,
-          `"${r.tipo_habitacion || ''}"`,
-          r.piso,
-          r.fecha_checkin ? r.fecha_checkin.split('T')[0] : '',
-          r.fecha_checkout ? r.fecha_checkout.split('T')[0] : '',
-          r.cantidad_huespedes,
-          r.estado,
-          r.monto_pagado
-        ].join(",");
-        csvContent += fila + "\r\n";
-      });
-
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `Reporte_Reservas_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error de Exportación', mensaje: err.message });
-    }
-  };
 
   const abrirModalRegistroDirecto = () => {
     setFormDataDirecto({
@@ -467,7 +769,7 @@ export default function Reservas() {
         nueva_fecha_checkin: formDataCheckin.advertenciaFecha ? formDataCheckin.nuevaFechaCheckin : null
       };
 
-      const respuesta = await fetch(`http://localhost:3000/api/reservas/${reservaParaCheckin.codigo_reserva}/checkin`, {
+      const respuesta = await fetch(`${API_RESERVAS_URL}/${reservaParaCheckin.codigo_reserva}/checkin`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -955,10 +1257,16 @@ export default function Reservas() {
           <div className="contenedor-botones-reservas">
             <button
               type="button"
-              onClick={exportarReporteExcel}
-              className="boton-limpiar-filtros-reserva"
+              onClick={() => {
+                setFiltroReporteEstado(filtroEstado);
+                setFiltroReporteBusqueda(busqueda);
+                setFiltroReporteFechaInicio(filtroFechaInicio);
+                setFiltroReporteFechaFin(filtroFechaFin);
+                setModalReporteAbierto(true);
+              }}
+              className="btn-export-excel"
             >
-              Exportar Excel
+              <span>Exportar Reporte</span>
             </button>
 
             {(filtroFechaInicio || filtroFechaFin || busqueda || filtroEstado !== 'TODAS') && (
@@ -1451,6 +1759,182 @@ export default function Reservas() {
                 <button type="submit" className="boton-guardar">Guardar Check-in y Ocupar Habitación</button>
               </footer>
             </form>
+          </article>
+        </aside>
+      )}
+
+      {/* --- MODAL PANEL DE PERSONALIZACIÓN Y FILTROS DE REPORTE --- */}
+      {modalReporteAbierto && (
+        <aside className="overlay-modal" onClick={() => setModalReporteAbierto(false)}>
+          <article className="contenido-modal modal-detalle modal-reporte-ancho" onClick={(e) => e.stopPropagation()}>
+            <header className="encabezado-modal">
+              <h2 className="titulo-modal">Generador de Reportes — Reservas</h2>
+              <button type="button" className="boton-cerrar-modal" onClick={() => setModalReporteAbierto(false)}>
+                &times;
+              </button>
+            </header>
+
+            <section className="cuerpo-modal-reporte">
+              <p className="texto-descripcion-reporte">
+                Configure los filtros, rangos de fecha, canal de origen y el formato de salida deseado para el reporte gerencial.
+              </p>
+
+              <div className="contenedor-kpis-resumen">
+                <article className="tarjeta-kpi-mini">
+                  <span className="kpi-titulo-mini">Registros en Vista</span>
+                  <strong className="kpi-valor-mini">{reservasFiltradas.length}</strong>
+                </article>
+                <article className="tarjeta-kpi-mini">
+                  <span className="kpi-titulo-mini">Estado Seleccionado</span>
+                  <strong className="kpi-valor-mini">{filtroReporteEstado}</strong>
+                </article>
+              </div>
+
+              <div className="grupo-campos">
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Filtrar por Estado</span>
+                  <select
+                    className="contenedor-filtro-reporte"
+                    value={filtroReporteEstado}
+                    onChange={(e) => setFiltroReporteEstado(e.target.value)}
+                  >
+                    <option value="TODAS">Todos los Estados</option>
+                    <option value="PENDIENTE">Pendientes</option>
+                    <option value="CONFIRMADA">Confirmadas</option>
+                    <option value="CHECKIN">Check-in</option>
+                    <option value="CHECKOUT">Check-out</option>
+                    <option value="CANCELADA">Canceladas</option>
+                  </select>
+                </label>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Canal de Origen de la Reserva</span>
+                  <select
+                    className="contenedor-filtro-reporte"
+                    value={filtroReporteOrigen}
+                    onChange={(e) => setFiltroReporteOrigen(e.target.value)}
+                  >
+                    <option value="TODAS">Todos los Canales (Sistema y Telegram)</option>
+                    <option value="SISTEMA">Solo Sistema (Web / Recepción)</option>
+                    <option value="TELEGRAM">Solo Bot de Telegram</option>
+                  </select>
+                </label>
+
+                <div className="grupo-campos-fechas">
+                  <label className="campo">
+                    <span className="label-texto">Fecha de Inicio (Check-in / Rango)</span>
+                    <input
+                      type="date"
+                      className="input-reporte-texto"
+                      value={filtroReporteFechaInicio}
+                      onChange={(e) => setFiltroReporteFechaInicio(e.target.value)}
+                    />
+                  </label>
+
+                  <label className="campo">
+                    <span className="label-texto">Fecha de Cierre (Check-out / Rango)</span>
+                    <input
+                      type="date"
+                      className="input-reporte-texto"
+                      value={filtroReporteFechaFin}
+                      onChange={(e) => setFiltroReporteFechaFin(e.target.value)}
+                    />
+                  </label>
+                </div>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Criterio de Búsqueda</span>
+                  <input
+                    type="text"
+                    className="input-reporte-texto"
+                    placeholder="Filtrar por huésped o N° de reserva..."
+                    value={filtroReporteBusqueda}
+                    onChange={(e) => setFiltroReporteBusqueda(e.target.value)}
+                  />
+                </label>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Formato de Salida</span>
+                  <div className="grupo-opciones-reporte">
+                    <button
+                      type="button"
+                      className={`boton-opcion-formato ${formatoReporte === 'EXCEL' ? 'activo' : ''}`}
+                      onClick={() => setFormatoReporte('EXCEL')}
+                    >
+                      Excel
+                    </button>
+                    <button
+                      type="button"
+                      className={`boton-opcion-formato ${formatoReporte === 'PDF' ? 'activo' : ''}`}
+                      onClick={() => setFormatoReporte('PDF')}
+                    >
+                      PDF
+                    </button>
+                    <button
+                      type="button"
+                      className={`boton-opcion-formato ${formatoReporte === 'CORREO' ? 'activo' : ''}`}
+                      onClick={() => setFormatoReporte('CORREO')}
+                    >
+                      Correo
+                    </button>
+                  </div>
+                </label>
+
+                {formatoReporte === 'CORREO' && (
+                  <label className="campo ancho-completo">
+                    <span className="label-texto">Correo Destinatario *</span>
+                    <input
+                      type="email"
+                      className="input-reporte-texto"
+                      placeholder="ejemplo@correo.com"
+                      value={correoDestino}
+                      onChange={(e) => setCorreoDestino(e.target.value)}
+                    />
+                  </label>
+                )}
+              </div>
+            </section>
+
+            <footer className="acciones-modal-detalle">
+              <button
+                type="button"
+                className="boton-cancelar"
+                onClick={() => setModalReporteAbierto(false)}
+              >
+                Cancelar
+              </button>
+
+              <div className="contenedor-accion-principal">
+                {formatoReporte === 'EXCEL' && (
+                  <button
+                    type="button"
+                    className="btn-export-excel boton-ancho-completo"
+                    onClick={exportarReporteExcelReservas}
+                  >
+                    Descargar Excel
+                  </button>
+                )}
+                {formatoReporte === 'PDF' && (
+                  <button
+                    type="button"
+                    className="btn-export-pdf boton-ancho-completo"
+                    onClick={exportarReportePDFReservas}
+                  >
+                    Descargar PDF
+                  </button>
+                )}
+                {formatoReporte === 'CORREO' && (
+                  <button
+                    type="button"
+                    className="btn-enviar-correo boton-ancho-completo"
+                    onClick={enviarReportePorCorreoReservas}
+                    disabled={enviandoCorreo}
+                  >
+                    {enviandoCorreo ? 'Enviando...' : 'Enviar Reporte por Correo'}
+                  </button>
+                )}
+              </div>
+            </footer>
           </article>
         </aside>
       )}

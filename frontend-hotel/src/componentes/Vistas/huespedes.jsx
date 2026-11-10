@@ -1,23 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import '../../estilos/huespedes.css';
+import XLSX from 'xlsx-js-style';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { API_BASE_URL } from '../../config/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/huespedes';
+const API_URL = `${API_BASE_URL}/api/huespedes`;
 
 export default function Huespedes() {
-  // 1. ESTADOS DE DATOS Y FILTROS
+
   const [huespedes, setHuespedes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorTabla, setErrorTabla] = useState(null);
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('TODOS');
 
-  // 2. ESTADOS DEL MODAL DE FORMULARIO
+  const [correoDestino, setCorreoDestino] = useState('');
+  const [enviandoCorreo, setEnviandoCorreo] = useState(false);
+
   const [modalFormAbierto, setModalFormAbierto] = useState(false);
-  const [modoModal, setModoModal] = useState('CREAR'); // 'CREAR' | 'EDITAR'
+  const [modoModal, setModoModal] = useState('CREAR');
   const [guardando, setGuardando] = useState(false);
   const [erroresForm, setErroresForm] = useState({});
 
-  // Estado inicial del formulario
+  const [formatoReporte, setFormatoReporte] = useState('EXCEL'); // 'EXCEL' | 'PDF' | 'CORREO'
+
+  const [modalReporteAbierto, setModalReporteAbierto] = useState(false);
+  const [filtroReporteEstado, setFiltroReporteEstado] = useState('TODOS');
+  const [filtroReporteBusqueda, setFiltroReporteBusqueda] = useState('');
+
   const estadoInicialForm = {
     id_huesped: null,
     nombre: '',
@@ -29,7 +40,6 @@ export default function Huespedes() {
   };
   const [formData, setFormData] = useState(estadoInicialForm);
 
-  // 3. ESTADO DEL MODAL DE ALERTAS/NOTIFICACIONES (Éxito, Error, Confirmar)
   const [alerta, setAlerta] = useState({
     abierto: false,
     tipo: 'exito', // 'exito' | 'error' | 'confirmar'
@@ -39,7 +49,117 @@ export default function Huespedes() {
     textoConfirmar: 'Aceptar'
   });
 
-  // Cargar lista de huéspedes desde el Backend (GET)
+  const exportarReportePDFHuespedes = async () => {
+    try {
+      const urlReporte = `${API_URL}/reporte/excel?estado=${filtroReporteEstado}&busqueda=${encodeURIComponent(filtroReporteBusqueda)}`;
+      const respuesta = await fetch(urlReporte);
+      if (!respuesta.ok) throw new Error('No se pudo obtener la data para el PDF.');
+      const datos = await respuesta.json();
+
+      if (!datos || datos.length === 0) {
+        setAlerta({ abierto: true, tipo: 'error', titulo: 'Sin registros', mensaje: 'No hay datos para generar el PDF.' });
+        return;
+      }
+
+      const doc = new jsPDF();
+      const hoy = new Date();
+      const fechaStr = hoy.toLocaleDateString('es-VE');
+
+      // Membrete Oficial
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(30, 58, 138);
+      doc.text("SISTEMA HOTELERO — INFORME DE HUÉSPEDES", 14, 20);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Fecha de emisión: ${fechaStr} | Filtro: [Estado: ${filtroReporteEstado}]`, 14, 26);
+
+      // Bloque de KPIs
+      const totalHuespedes = datos.length;
+      const totalRecaudado = datos.reduce((acc, curr) => acc + parseFloat(curr.total_gastado || 0), 0);
+
+      doc.setDrawColor(203, 213, 225);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(14, 32, 182, 16, 2, 2, 'FD');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`Total Huéspedes: ${totalHuespedes}`, 18, 42);
+      doc.text(`Monto Histórico Total: $${totalRecaudado.toFixed(2)} USD`, 110, 42);
+
+      // Tabla de Datos
+      const headers = [['ID', 'Documento', 'Nombre y Apellido', 'Teléfono', 'Estado', 'Total Gastado']];
+      const rows = datos.map(h => [
+        h.id_huesped,
+        `${h.tipo_documento}-${h.num_documento}`,
+        h.nombre,
+        h.telefono || 'N/A',
+        h.estado,
+        `$${parseFloat(h.total_gastado || 0).toFixed(2)}`
+      ]);
+
+      autoTable(doc, {
+        startY: 54,
+        head: headers,
+        body: rows,
+        theme: 'grid',
+        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 9, cellPadding: 4 }
+      });
+
+      doc.save(`Reporte_Huespedes_${hoy.toISOString().slice(0, 10)}.pdf`);
+      setModalReporteAbierto(false);
+
+      setAlerta({
+        abierto: true,
+        tipo: 'exito',
+        titulo: '¡PDF Generado!',
+        mensaje: 'El reporte ejecutivo en formato PDF se descargó correctamente.'
+      });
+    } catch (err) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error al generar PDF', mensaje: err.message });
+    }
+  };
+
+  const enviarReportePorCorreo = async () => {
+    if (!correoDestino || !correoDestino.trim()) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Correo Requerido', mensaje: 'Por favor, escriba una dirección de correo válida.' });
+      return;
+    }
+
+    setEnviandoCorreo(true);
+    try {
+      const respuesta = await fetch(`${API_URL}/reporte/correo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          correo_destino: correoDestino,
+          estado: filtroReporteEstado,
+          busqueda: filtroReporteBusqueda
+        })
+      });
+
+      const resData = await respuesta.json();
+      if (!respuesta.ok) throw new Error(resData.mensaje || 'Error al enviar el correo.');
+
+      setModalReporteAbierto(false);
+      setCorreoDestino('');
+      setAlerta({
+        abierto: true,
+        tipo: 'exito',
+        titulo: '¡Correo Despachado!',
+        mensaje: 'El reporte ejecutivo fue enviado exitosamente a la bandeja de entrada.'
+      });
+    } catch (err) {
+      setAlerta({ abierto: true, tipo: 'error', titulo: 'Error de Envío', mensaje: err.message });
+    } finally {
+      setEnviandoCorreo(false);
+    }
+  };
+
   const cargarHuespedes = async () => {
     try {
       setLoading(true);
@@ -57,36 +177,191 @@ export default function Huespedes() {
     }
   };
 
-  const exportarReporteExcel = async () => {
+  const exportarReporteExcelHuespedes = async () => {
     try {
-      const respuesta = await fetch(`${API_URL}/reporte/excel`);
-      if (!respuesta.ok) throw new Error('No se pudo generar el reporte de huéspedes.');
+      // Consultar al backend pasando los filtros activos del panel de reporte
+      const urlReporte = `${API_URL}/reporte/excel?estado=${filtroReporteEstado}&busqueda=${encodeURIComponent(filtroReporteBusqueda)}`;
+      const respuesta = await fetch(urlReporte);
+      if (!respuesta.ok) throw new Error('No se pudo generar el reporte avanzado de huéspedes.');
 
       const datos = await respuesta.json();
+      if (!datos || datos.length === 0) {
+        setAlerta({
+          abierto: true,
+          tipo: 'error',
+          titulo: 'Sin datos para exportar',
+          mensaje: 'No hay registros que coincidan con los filtros seleccionados para generar el Excel.'
+        });
+        return;
+      }
 
-      let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-      csvContent += "ID Huésped,Tipo Documento,Número Documento,Nombre,Teléfono,Correo,Estado\n";
+      const wb = XLSX.utils.book_new();
+      const hoy = new Date();
+      const fechaStr = hoy.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const horaStr = hoy.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+      const folioFecha = hoy.toISOString().slice(0, 10).replace(/-/g, '');
 
-      datos.forEach((h) => {
-        const fila = [
-          h.id_huesped,
-          h.tipo_documento,
-          `"${h.num_documento || ''}"`,
-          `"${h.nombre || ''}"`,
-          `"${h.telefono || ''}"`,
-          `"${h.correo || ''}"`,
-          h.estado
-        ].join(",");
-        csvContent += fila + "\r\n";
+      let nombreAutor = 'Administración Hotelera';
+      try {
+        const sesion = JSON.parse(localStorage.getItem('sesion_activa')) || JSON.parse(localStorage.getItem('usuario')) || {};
+        nombreAutor = sesion.nombre || sesion.usuario?.nombre || 'Administración Hotelera';
+      } catch (e) {
+        nombreAutor = 'Administración Hotelera';
+      }
+
+      // Estilos institucionales
+      const estilosTitulo = {
+        font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "1E3A8A" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+
+      const estilosSubtitulo = {
+        font: { name: 'Segoe UI', sz: 10, italic: true, color: { rgb: "334155" } },
+        fill: { fgColor: { rgb: "F1F5F9" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+
+      const estilosHeader = {
+        font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "2563EB" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+          top: { style: 'thin', color: { rgb: "CBD5E1" } },
+          bottom: { style: 'thin', color: { rgb: "CBD5E1" } },
+          left: { style: 'thin', color: { rgb: "CBD5E1" } },
+          right: { style: 'thin', color: { rgb: "CBD5E1" } }
+        }
+      };
+
+      const estilosCelda = {
+        font: { name: 'Segoe UI', sz: 10, color: { rgb: "0F172A" } },
+        alignment: { vertical: "center" },
+        border: {
+          top: { style: 'thin', color: { rgb: "E2E8F0" } },
+          bottom: { style: 'thin', color: { rgb: "E2E8F0" } },
+          left: { style: 'thin', color: { rgb: "E2E8F0" } },
+          right: { style: 'thin', color: { rgb: "E2E8F0" } }
+        }
+      };
+
+      const estilosCeldaCentro = {
+        ...estilosCelda,
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+
+      const estilosCeldaNumero = {
+        ...estilosCelda,
+        alignment: { horizontal: "right", vertical: "center" },
+        numFmt: "$#,##0.00"
+      };
+
+      const estilosGranTotal = {
+        font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: "1E3A8A" } },
+        fill: { fgColor: { rgb: "E0E7FF" } },
+        alignment: { horizontal: "right", vertical: "center" },
+        border: {
+          top: { style: 'thin', color: { rgb: "1E3A8A" } },
+          bottom: { style: 'double', color: { rgb: "1E3A8A" } },
+          left: { style: 'thin', color: { rgb: "93C5FD" } },
+          right: { style: 'thin', color: { rgb: "93C5FD" } }
+        }
+      };
+
+      const headers = [
+        'ID Huésped',
+        'Tipo Doc.',
+        'N° Documento',
+        'Nombre y Apellido',
+        'Teléfono',
+        'Correo Electrónico',
+        'Estado',
+        'Total Reservas',
+        'Total Consumido (USD)'
+      ];
+
+      const crearFilaCombinada = (texto, estilo, numCols = 9) => {
+        const fila = [{ v: texto, s: estilo }];
+        for (let i = 1; i < numCols; i++) {
+          fila.push({ v: '', s: estilo });
+        }
+        return fila;
+      };
+
+      const resumenFiltros = `Estado: ${filtroReporteEstado} ${filtroReporteBusqueda ? `| Búsqueda: "${filtroReporteBusqueda}"` : ''}`;
+
+      const wsData = [
+        crearFilaCombinada('SISTEMA HOTELERO — REPORTE OFICIAL DE GESTIÓN DE HUÉSPEDES', estilosTitulo, 9),
+        crearFilaCombinada(`Generado el: ${fechaStr} ${horaStr} | Filtros aplicados: [${resumenFiltros}] | Emitido por: ${nombreAutor} | Folio: #HUES-${folioFecha}`, estilosSubtitulo, 9),
+        [],
+        headers.map((h) => ({ v: h, s: estilosHeader }))
+      ];
+
+      const merges = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }
+      ];
+
+      let sumaTotalGastado = 0;
+      let totalReservasGlobal = 0;
+
+      datos.forEach((h, idx) => {
+        const gastado = parseFloat(h.total_gastado) || 0;
+        const numReservas = parseInt(h.total_reservas) || 0;
+        sumaTotalGastado += gastado;
+        totalReservasGlobal += numReservas;
+
+        const filaEstilo = idx % 2 === 0
+          ? { fill: { fgColor: { rgb: "FFFFFF" } } }
+          : { fill: { fgColor: { rgb: "F8FAFC" } } };
+
+        wsData.push([
+          { v: h.id_huesped, s: { ...estilosCeldaCentro, ...filaEstilo } },
+          { v: h.tipo_documento, s: { ...estilosCeldaCentro, ...filaEstilo } },
+          { v: String(h.num_documento), s: { ...estilosCeldaCentro, ...filaEstilo } },
+          { v: h.nombre, s: { ...estilosCelda, ...filaEstilo, font: { ...estilosCelda.font, bold: true } } },
+          { v: h.telefono || 'N/A', s: { ...estilosCeldaCentro, ...filaEstilo } },
+          { v: h.correo || 'N/A', s: { ...estilosCelda, ...filaEstilo } },
+          { v: h.estado, s: { ...estilosCeldaCentro, ...filaEstilo, font: { ...estilosCeldaCentro.font, bold: true, color: { rgb: h.estado === 'ACTIVO' ? '15803D' : '64748B' } } } },
+          { v: numReservas, t: 'n', s: { ...estilosCeldaCentro, ...filaEstilo } },
+          { v: gastado, t: 'n', s: { ...estilosCeldaNumero, ...filaEstilo } }
+        ]);
       });
 
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `Reporte_Huespedes_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      wsData.push([]);
+
+      const filaTotalIdx = wsData.length;
+      const textoGranTotal = `TOTALES GENERALES — Total Huéspedes: ${datos.length}  |  Total Reservas Históricas: ${totalReservasGlobal}  |  Monto Total Acumulado (USD):`;
+
+      const filaTotal = [];
+      for (let c = 0; c < 8; c++) {
+        filaTotal.push({ v: c === 0 ? textoGranTotal : '', s: estilosGranTotal });
+      }
+      filaTotal.push({
+        v: sumaTotalGastado,
+        t: 'n',
+        s: { ...estilosGranTotal, numFmt: "$#,##0.00" }
+      });
+
+      wsData.push(filaTotal);
+      merges.push({ s: { r: filaTotalIdx, c: 0 }, e: { r: filaTotalIdx, c: 7 } });
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!merges'] = merges;
+      ws['!cols'] = [
+        { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 28 }, { wch: 16 }, { wch: 28 }, { wch: 12 }, { wch: 16 }, { wch: 22 }
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Reporte Huéspedes');
+      XLSX.writeFile(wb, `Reporte_Huespedes_${hoy.toISOString().slice(0, 10)}.xlsx`);
+
+      setModalReporteAbierto(false);
+      setAlerta({
+        abierto: true,
+        tipo: 'exito',
+        titulo: '¡Reporte Excel Generado!',
+        mensaje: 'El informe detallado de huéspedes con filtros aplicados se descargó con éxito.'
+      });
     } catch (err) {
       setAlerta({ abierto: true, tipo: 'error', titulo: 'Error de Exportación', mensaje: err.message });
     }
@@ -178,7 +453,7 @@ export default function Huespedes() {
     // 3. Si hay errores, mostrarlos en pantalla y detener el envío
     if (Object.keys(erroresTemp).length > 0) {
       setErroresForm(erroresTemp);
-      return; 
+      return;
     }
 
     setGuardando(true);
@@ -326,13 +601,17 @@ export default function Huespedes() {
           </label>
         </section>
 
-   <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="contenedor-acciones-superior">
           <button
             type="button"
-            onClick={exportarReporteExcel}
-            className="boton-exportar-gris"
+            onClick={() => {
+              setFiltroReporteEstado(filtroEstado);
+              setFiltroReporteBusqueda(busqueda);
+              setModalReporteAbierto(true);
+            }}
+            className="btn-export-excel"
           >
-            <span>Exportar Excel</span>
+            <span>Exportar Reporte</span>
           </button>
 
           <button type="button" className="boton-agregar" onClick={abrirModalCrear}>
@@ -537,6 +816,145 @@ export default function Huespedes() {
                 </button>
               </footer>
             </form>
+          </article>
+        </aside>
+      )}
+
+      {/* --- MODAL PANEL DE PERSONALIZACIÓN Y FILTROS DE REPORTE --- */}
+      {modalReporteAbierto && (
+        <aside className="overlay-modal" onClick={() => setModalReporteAbierto(false)}>
+          <article className="contenido-modal modal-detalle" onClick={(e) => e.stopPropagation()}>
+            <header className="encabezado-modal">
+              <h2 className="titulo-modal">Generador de Reportes — Huéspedes</h2>
+              <button type="button" className="boton-cerrar-modal" onClick={() => setModalReporteAbierto(false)}>
+                &times;
+              </button>
+            </header>
+
+            <section className="cuerpo-modal-reporte">
+              <p className="texto-descripcion-reporte">
+                Configure los filtros y el formato de salida deseado para el reporte gerencial.
+              </p>
+
+              <div className="contenedor-kpis-resumen">
+                <article className="tarjeta-kpi-mini">
+                  <span className="kpi-titulo-mini">Registros en Vista</span>
+                  <strong className="kpi-valor-mini">{huespedesFiltrados.length}</strong>
+                </article>
+                <article className="tarjeta-kpi-mini">
+                  <span className="kpi-titulo-mini">Estado Seleccionado</span>
+                  <strong className="kpi-valor-mini">{filtroReporteEstado}</strong>
+                </article>
+              </div>
+
+              <div className="grupo-campos">
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Filtrar por Estado</span>
+                  <select
+                    className="contenedor-filtro-reporte"
+                    value={filtroReporteEstado}
+                    onChange={(e) => setFiltroReporteEstado(e.target.value)}
+                  >
+                    <option value="TODOS">Todos los Estados</option>
+                    <option value="ACTIVO">Solo Activos</option>
+                    <option value="INACTIVO">Solo Inactivos</option>
+                  </select>
+                </label>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Criterio de Búsqueda</span>
+                  <input
+                    type="text"
+                    className="input-reporte-texto"
+                    placeholder="Filtrar por nombre, cédula o correo..."
+                    value={filtroReporteBusqueda}
+                    onChange={(e) => setFiltroReporteBusqueda(e.target.value)}
+                  />
+                </label>
+
+                <label className="campo ancho-completo">
+                  <span className="label-texto">Formato de Salida</span>
+                  <div className="grupo-opciones-reporte">
+                    <button
+                      type="button"
+                      className={`boton-opcion-formato ${formatoReporte === 'EXCEL' ? 'activo' : ''}`}
+                      onClick={() => setFormatoReporte('EXCEL')}
+                    >
+                      Excel
+                    </button>
+                    <button
+                      type="button"
+                      className={`boton-opcion-formato ${formatoReporte === 'PDF' ? 'activo' : ''}`}
+                      onClick={() => setFormatoReporte('PDF')}
+                    >
+                      PDF
+                    </button>
+                    <button
+                      type="button"
+                      className={`boton-opcion-formato ${formatoReporte === 'CORREO' ? 'activo' : ''}`}
+                      onClick={() => setFormatoReporte('CORREO')}
+                    >
+                      Correo
+                    </button>
+                  </div>
+                </label>
+
+                {/* El campo de correo aparece dinámicamente solo si se selecciona la opción de Correo */}
+                {formatoReporte === 'CORREO' && (
+                  <label className="campo ancho-completo">
+                    <span className="label-texto">Correo Destinatario *</span>
+                    <input
+                      type="email"
+                      className="input-reporte-texto"
+                      placeholder="ejemplo@correo.com"
+                      value={correoDestino}
+                      onChange={(e) => setCorreoDestino(e.target.value)}
+                    />
+                  </label>
+                )}
+              </div>
+            </section>
+
+            <footer className="acciones-modal-detalle">
+              <button
+                type="button"
+                className="boton-cancelar"
+                onClick={() => setModalReporteAbierto(false)}
+              >
+                Cancelar
+              </button>
+
+              <div className="contenedor-accion-principal">
+                {formatoReporte === 'EXCEL' && (
+                  <button
+                    type="button"
+                    className="btn-export-excel boton-ancho-completo"
+                    onClick={exportarReporteExcelHuespedes}
+                  >
+                    Descargar Excel
+                  </button>
+                )}
+                {formatoReporte === 'PDF' && (
+                  <button
+                    type="button"
+                    className="btn-export-pdf boton-ancho-completo"
+                    onClick={exportarReportePDFHuespedes}
+                  >
+                    Descargar PDF
+                  </button>
+                )}
+                {formatoReporte === 'CORREO' && (
+                  <button
+                    type="button"
+                    className="btn-enviar-correo boton-ancho-completo"
+                    onClick={enviarReportePorCorreo}
+                    disabled={enviandoCorreo}
+                  >
+                    {enviandoCorreo ? 'Enviando...' : 'Enviar Reporte por Correo'}
+                  </button>
+                )}
+              </div>
+            </footer>
           </article>
         </aside>
       )}

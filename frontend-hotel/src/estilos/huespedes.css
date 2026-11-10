@@ -588,3 +588,216 @@
 .boton-exportar-gris:hover {
   background-color: #e2e8f0;
 }
+
+/* Estilo unificado para botón de reporte y exportación (idéntico a Habitaciones) */
+.btn-export-excel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #059669; /* Verde corporativo Excel */
+  color: #ffffff;
+  padding: 0.65rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-export-excel:hover {
+  background-color: #047857;
+}
+
+.boton-secundario-barra {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  padding: 0.65rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.boton-secundario-barra:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+/* Panel Modal de Filtros Avanzados */
+.cuerpo-modal-reporte {
+  padding: 1.25rem 1.5rem !important;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem !important;
+  background-color: #ffffff !important;
+}
+
+.contenedor-kpis-resumen {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.tarjeta-kpi-mini {
+  background-color: #f8fafc;
+  padding: 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.kpi-titulo-mini {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.kpi-valor-mini {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+/* Contenedores y grillas con clases profesionales */
+.contenedor-acciones-superior {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.contenedor-filtro-reporte {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background-color: #ffffff;
+  font-size: 0.9rem;
+  color: #0f172a;
+  outline: none;
+}
+
+.input-reporte-texto {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #0f172a;
+  outline: none;
+}
+
+.texto-descripcion-reporte {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Botón de exportación PDF (Rojo/Naranja ejecutivo) */
+.btn-export-pdf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #dc2626;
+  color: #ffffff;
+  padding: 0.65rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-export-pdf:hover {
+  background-color: #b91c1c;
+}
+
+/* Botón de envío por correo (Azul corporativo) */
+.btn-enviar-correo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #2563eb;
+  color: #ffffff;
+  padding: 0.65rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-enviar-correo:hover {
+  background-color: #1d4ed8;
+}
+
+/* Contenedor de acciones dentro del modal de reportes */
+.grupo-botones-modal-reporte {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Estilos profesionales para el selector de reportes y botones unificados */
+.grupo-opciones-reporte {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.boton-opcion-formato {
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 0.6rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.boton-opcion-formato:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.boton-opcion-formato.activo {
+  background-color: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.contenedor-accion-principal {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.btn-export-excel.boton-ancho-completo,
+.btn-export-pdf.boton-ancho-completo,
+.btn-enviar-correo.boton-ancho-completo {
+  width: 100%;
+  justify-content: center;
+}

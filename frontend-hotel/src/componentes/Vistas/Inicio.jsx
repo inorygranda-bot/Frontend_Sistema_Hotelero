@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import '../../estilos/inicio.css';
 import heroImg from '../../assets/hotel_lobby_hero.jpg';
+import { API_BASE_URL } from '../../config/api';
 
 // Iconos SVG 100% reutilizables
 const IconSvg = ({ children, size = 18, color = 'currentColor', className = '' }) => (
@@ -76,11 +77,11 @@ export default function Inicio({ setVistaActual, usuario }) {
     try {
       setCargando(true);
       const [resHab, resRes, resHue, resTar, resRol] = await Promise.all([
-        fetch('http://localhost:3000/api/habitaciones').catch(() => null),
-        fetch('http://localhost:3000/api/reservas').catch(() => null),
-        fetch('http://localhost:3000/api/huespedes').catch(() => null),
-        fetch('http://localhost:3000/api/tarifas').catch(() => null),
-        fetch('http://localhost:3000/api/roles').catch(() => null)
+        fetch(`${API_BASE_URL}/api/habitaciones`).catch(() => null),
+        fetch(`${API_BASE_URL}/api/reservas`).catch(() => null),
+        fetch(`${API_BASE_URL}/api/huespedes`).catch(() => null),
+        fetch(`${API_BASE_URL}/api/tarifas`).catch(() => null),
+        fetch(`${API_BASE_URL}/api/roles`).catch(() => null)
       ]);
 
       if (resHab && resHab.ok) setHabitaciones(await resHab.json());

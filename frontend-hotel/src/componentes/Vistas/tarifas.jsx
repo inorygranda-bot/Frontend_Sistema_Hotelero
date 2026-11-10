@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import XLSX from 'xlsx-js-style';
 import '../../estilos/tarifas.css';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { API_BASE_URL } from '../../config/api';
 
 const IconSvg = ({ children, size = 18, color = 'currentColor', className = '' }) => (
   <svg
@@ -45,10 +48,20 @@ const FileSpreadsheet = (p) => (
   </IconSvg>
 );
 
-const API_BASE = 'http://localhost:3000/api/tarifas';
-const API_TEMPORADAS_BASE = 'http://localhost:3000/api/temporadas';
+const API_BASE = `${API_BASE_URL}/api/tarifas`;
+const API_TEMPORADAS_BASE = `${API_BASE_URL}/api/temporadas`;
 
 export default function Tarifas() {
+
+  const [modalReporteAbierto, setModalReporteAbierto] = useState(false);
+  const [formatoReporte, setFormatoReporte] = useState('EXCEL'); // 'EXCEL' | 'PDF' | 'CORREO'
+  const [filtroReporteBusqueda, setFiltroReporteBusqueda] = useState('');
+  const [filtroReporteHabitacion, setFiltroReporteHabitacion] = useState('');
+  const [filtroReporteTemporada, setFiltroReporteTemporada] = useState('');
+  const [filtroReporteEstado, setFiltroReporteEstado] = useState('TODOS');
+  const [correoDestino, setCorreoDestino] = useState('');
+  const [enviandoCorreo, setEnviandoCorreo] = useState(false);
+
   const [tarifas, setTarifas] = useState([]);
   const [tiposHabitacion, setTiposHabitacion] = useState([]);
   const [temporadas, setTemporadas] = useState([]);
@@ -102,6 +115,220 @@ export default function Tarifas() {
   const [tarifaAEliminar, setTarifaAEliminar] = useState(null);
   const [toasts, setToasts] = useState([]);
 
+  const tarifasReporteFiltradas = tarifas.filter((item) => {
+    const q = filtroReporteBusqueda.toLowerCase().trim();
+    const matchBusqueda = !q || item.nombre_tarifa.toLowerCase().includes(q) || `tar-${item.id_tarifa}`.includes(q) || item.nombre_habitacion.toLowerCase().includes(q);
+    const matchHabitacion = !filtroReporteHabitacion || item.nombre_habitacion === filtroReporteHabitacion;
+    const matchTemporada = !filtroReporteTemporada || String(item.id_temporada) === filtroReporteTemporada;
+    const matchEstado = filtroReporteEstado === 'TODOS' || item.estado.toLowerCase() === filtroReporteEstado.toLowerCase();
+    return matchBusqueda && matchHabitacion && matchTemporada && matchEstado;
+  });
+
+  const exportarExcelTarifas = () => {
+    if (!tarifasReporteFiltradas || tarifasReporteFiltradas.length === 0) {
+      lanzarToast('No hay tarifas disponibles con los filtros seleccionados para generar el Excel.', 'error');
+      return;
+    }
+    try {
+      const wb = XLSX.utils.book_new();
+      const hoy = new Date();
+      const fechaStr = hoy.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const horaStr = hoy.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+
+      const estilosTitulo = {
+        font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "1E3A8A" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+
+      const estilosSubtitulo = {
+        font: { name: 'Segoe UI', sz: 10, italic: true, color: { rgb: "334155" } },
+        fill: { fgColor: { rgb: "F1F5F9" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+
+      const estilosHeader = {
+        font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "2563EB" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+          top: { style: 'thin', color: { rgb: "CBD5E1" } },
+          bottom: { style: 'thin', color: { rgb: "CBD5E1" } },
+          left: { style: 'thin', color: { rgb: "CBD5E1" } },
+          right: { style: 'thin', color: { rgb: "CBD5E1" } }
+        }
+      };
+
+      const estilosCelda = {
+        font: { name: 'Segoe UI', sz: 10, color: { rgb: "0F172A" } },
+        alignment: { vertical: "center" },
+        border: {
+          top: { style: 'thin', color: { rgb: "E2E8F0" } },
+          bottom: { style: 'thin', color: { rgb: "E2E8F0" } },
+          left: { style: 'thin', color: { rgb: "E2E8F0" } },
+          right: { style: 'thin', color: { rgb: "E2E8F0" } }
+        }
+      };
+
+      const estilosCeldaNumero = { ...estilosCelda, alignment: { horizontal: "right", vertical: "center" }, numFmt: "$#,##0.00" };
+      const estilosCeldaCentro = { ...estilosCelda, alignment: { horizontal: "center", vertical: "center" } };
+
+      const headers = ['Código', 'Nombre de la Tarifa', 'Habitación / Tipo', 'Temporada', 'Precio Base (USD)', 'Equiv. BCV (Bs.)', 'IVA (%)', 'Total c/ IVA (USD)', 'Total c/ IVA (Bs.)', 'Estado', 'Servicios / Incluye'];
+
+      const filtrosAplicados = [];
+      if (filtroReporteHabitacion) filtrosAplicados.push(`Habitación: ${filtroReporteHabitacion}`);
+      if (filtroReporteTemporada) filtrosAplicados.push(`Temporada ID: ${filtroReporteTemporada}`);
+      if (filtroReporteEstado !== 'TODOS') filtrosAplicados.push(`Estado: ${filtroReporteEstado}`);
+      if (filtroReporteBusqueda.trim()) filtrosAplicados.push(`Búsqueda: "${filtroReporteBusqueda.trim()}"`);
+      const resumenFiltros = filtrosAplicados.length > 0 ? filtrosAplicados.join(' • ') : 'Todos los registros';
+
+      const wsData = [
+        [{ v: 'SISTEMA HOTELERO — INFORME COMERCIAL DE TARIFAS Y TEMPORADAS', s: estilosTitulo }],
+        [{ v: `Generado: ${fechaStr} ${horaStr} | Filtros: [${resumenFiltros}] | Tasa Oficial BCV: 1 USD = ${bcvRate.toFixed(2)} Bs.`, s: estilosSubtitulo }],
+        [],
+        headers.map(h => ({ v: h, s: estilosHeader }))
+      ];
+
+      tarifasReporteFiltradas.forEach((r, index) => {
+        const precioBase = parseFloat(r.precio_base) || 0;
+        const ivaP = parseFloat(r.iva) || 16;
+        const precioBs = precioBase * bcvRate;
+        const tUSD = precioBase * (1 + ivaP / 100);
+        const tBs = tUSD * bcvRate;
+
+        const filaEstilo = index % 2 === 0 ? { fill: { fgColor: { rgb: "FFFFFF" } } } : { fill: { fgColor: { rgb: "F8FAFC" } } };
+
+        wsData.push([
+          { v: `#TAR-${r.id_tarifa}`, s: { ...estilosCeldaCentro, ...filaEstilo } },
+          { v: r.nombre_tarifa || '', s: { ...estilosCelda, ...filaEstilo, font: { ...estilosCelda.font, bold: true } } },
+          { v: r.nombre_habitacion || '', s: { ...estilosCelda, ...filaEstilo } },
+          { v: r.nombre_temporada || 'General', s: { ...estilosCeldaCentro, ...filaEstilo } },
+          { v: precioBase, s: { ...estilosCeldaNumero, ...filaEstilo } },
+          { v: precioBs, s: { ...estilosCeldaNumero, ...filaEstilo, numFmt: "Bs #,##0.00" } },
+          { v: `${ivaP}%`, s: { ...estilosCeldaCentro, ...filaEstilo } },
+          { v: tUSD, s: { ...estilosCeldaNumero, ...filaEstilo, font: { ...estilosCeldaNumero.font, bold: true } } },
+          { v: tBs, s: { ...estilosCeldaNumero, ...filaEstilo, numFmt: "Bs #,##0.00", font: { ...estilosCeldaNumero.font, bold: true } } },
+          { v: r.estado || 'Activa', s: { ...estilosCeldaCentro, ...filaEstilo, font: { ...estilosCeldaCentro.font, color: { rgb: r.estado?.toLowerCase() === 'activa' ? "15803D" : "B45309" }, bold: true } } },
+          { v: r.incluye || '', s: { ...estilosCelda, ...filaEstilo } }
+        ]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 10 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } }];
+      ws['!cols'] = [{ wch: 12 }, { wch: 25 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 10 }, { wch: 18 }, { wch: 20 }, { wch: 14 }, { wch: 35 }];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Informe Tarifas');
+      XLSX.writeFile(wb, `Reporte_Tarifas_${hoy.toISOString().slice(0, 10)}.xlsx`);
+      setModalReporteAbierto(false);
+      lanzarToast('Informe Excel exportado exitosamente.');
+    } catch (err) {
+      console.error(err);
+      lanzarToast('Error al generar Excel estilizado.', 'error');
+    }
+  };
+
+  const exportarReportePDFTarifas = () => {
+    if (!tarifasReporteFiltradas || tarifasReporteFiltradas.length === 0) {
+      lanzarToast('No hay tarifas disponibles con los filtros seleccionados para generar el PDF.', 'error');
+      return;
+    }
+    try {
+      const doc = new jsPDF();
+      const hoy = new Date();
+      const fechaStr = hoy.toLocaleDateString('es-VE');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(30, 58, 138);
+      doc.text("SISTEMA HOTELERO — INFORME COMERCIAL DE TARIFAS", 14, 20);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Fecha de emisión: ${fechaStr} | Estado: [${filtroReporteEstado}] | Tasa BCV: ${bcvRate.toFixed(2)} Bs.`, 14, 26);
+
+      const totalTarifas = tarifasReporteFiltradas.length;
+      const promedioPrecio = totalTarifas > 0 ? (tarifasReporteFiltradas.reduce((acc, curr) => acc + (parseFloat(curr.precio_base) || 0), 0) / totalTarifas).toFixed(2) : '0.00';
+
+      doc.setDrawColor(203, 213, 225);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(14, 32, 182, 16, 2, 2, 'FD');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`Total Tarifas: ${totalTarifas}`, 18, 42);
+      doc.text(`Precio Promedio Base: $${promedioPrecio} USD`, 100, 42);
+
+      const headers = [['Código', 'Nombre de Tarifa', 'Habitación', 'Temporada', 'Precio Base', 'Estado']];
+      const rows = tarifasReporteFiltradas.map(r => [
+        `#TAR-${r.id_tarifa}`,
+        r.nombre_tarifa,
+        r.nombre_habitacion,
+        r.nombre_temporada || 'General',
+        `$${parseFloat(r.precio_base || 0).toFixed(2)}`,
+        r.estado
+      ]);
+
+      autoTable(doc, {
+        startY: 54,
+        head: headers,
+        body: rows,
+        theme: 'grid',
+        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 3 }
+      });
+
+      doc.save(`Reporte_Tarifas_${hoy.toISOString().slice(0, 10)}.pdf`);
+      setModalReporteAbierto(false);
+      lanzarToast('Informe en PDF generado correctamente.');
+    } catch (err) {
+      lanzarToast('Error al generar PDF: ' + err.message, 'error');
+    }
+  };
+
+  const enviarReportePorCorreoTarifas = async () => {
+    if (!correoDestino || !correoDestino.trim()) {
+      lanzarToast('Por favor, escriba una dirección de correo válida.', 'error');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(correoDestino)) {
+      lanzarToast('El formato del correo electrónico no es válido.', 'error');
+      return;
+    }
+    if (!tarifasReporteFiltradas || tarifasReporteFiltradas.length === 0) {
+      lanzarToast('No hay registros para enviar con los filtros seleccionados.', 'error');
+      return;
+    }
+
+    setEnviandoCorreo(true);
+    try {
+      const respuesta = await fetch(`${API_BASE}/reporte/correo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          correo_destino: correoDestino,
+          estado: filtroReporteEstado,
+          habitacion: filtroReporteHabitacion,
+          temporada: filtroReporteTemporada,
+          busqueda: filtroReporteBusqueda
+        })
+      });
+
+      const resData = await respuesta.json();
+      if (!respuesta.ok) throw new Error(resData.mensaje || 'Error al enviar el correo.');
+
+      setModalReporteAbierto(false);
+      setCorreoDestino('');
+      lanzarToast('El informe de tarifas fue enviado exitosamente al correo.');
+    } catch (err) {
+      lanzarToast(err.message || 'Error al despachar el correo electrónico.', 'error');
+    } finally {
+      setEnviandoCorreo(false);
+    }
+  };
+
   const lanzarToast = (mensaje, tipo = 'exito') => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, mensaje, tipo }]);
@@ -152,8 +379,8 @@ export default function Tarifas() {
         fetch(API_BASE),
         fetch(`${API_BASE}/tipos-habitacion`),
         fetch(`${API_BASE}/temporadas`),
-        fetch('http://localhost:3000/api/habitaciones').catch(() => null),
-        fetch('http://localhost:3000/api/reservas').catch(() => null)
+        fetch(`${API_BASE_URL}/api/habitaciones`).catch(() => null),
+        fetch(`${API_BASE_URL}/api/reservas`).catch(() => null)
       ]);
 
       if (!resTarifas.ok || !resTipos.ok || !resTemp.ok) {
@@ -584,12 +811,21 @@ export default function Tarifas() {
         </section>
 
         <section className="toolbar-actions">
-          <button type="button" className="btn-export-excel" onClick={exportarExcel}>
-            <FileSpreadsheet size={16} />
-            <span>Exportar Excel</span>
+          <button
+            type="button"
+            className="btn-export-excel"
+            onClick={() => {
+              setFiltroReporteBusqueda(busqueda);
+              setFiltroReporteHabitacion(filtroHabitacion);
+              setFiltroReporteTemporada(filtroTemporada);
+              setFiltroReporteEstado(filtroEstado || 'TODOS');
+              setModalReporteAbierto(true);
+            }}
+          >
+            <span>Exportar Reporte</span>
           </button>
           <button type="button" className="btn-secundario-barra" onClick={() => setModalTemporadaAbierto(true)}>
-            <span>⚙️ Gestionar Temporadas</span>
+            <span>Gestionar Temporadas</span>
           </button>
           <button type="button" className="btn-nueva-tarifa" onClick={abrirModalCrear}>
             <Plus size={18} />
@@ -678,6 +914,7 @@ export default function Tarifas() {
           </table>
         )}
       </section>
+
 
       {/* MODAL CREAR / EDITAR TARIFA */}
       {modalFormAbierto && (
@@ -803,6 +1040,100 @@ export default function Tarifas() {
         </section>
       )}
 
+      {modalReporteAbierto && (
+        <section className="modal-overlay" onClick={() => setModalReporteAbierto(false)}>
+          <article className="modal-figma-card modal-figma-card-reporte" onClick={(e) => e.stopPropagation()}>
+            <header className="modal-figma-header">
+              <section className="modal-header-title-group">
+                <h2>Generador de Reportes — Tarifas</h2>
+                <p>Configure los filtros y el formato de salida deseado.</p>
+              </section>
+              <button type="button" className="btn-close-modal" onClick={() => setModalReporteAbierto(false)}><X size={18} /></button>
+            </header>
+
+            <section className="modal-figma-body modal-figma-body-reporte">
+              <section className="rate-card reporte-kpi-container">
+                <article className="reporte-kpi-box">
+                  <span className="rate-label">Registros en Vista</span>
+                  <strong className="reporte-kpi-value-general">{tarifasReporteFiltradas.length}</strong>
+                </article>
+                <article className="reporte-kpi-box">
+                  <span className="rate-label">Estado Seleccionado</span>
+                  <strong className="reporte-kpi-value-activo">{filtroReporteEstado}</strong>
+                </article>
+              </section>
+
+              <section className="rate-card reporte-form-card-column">
+                <label className="rate-form-group">
+                  <span className="rate-label">Filtrar por Estado</span>
+                  <select className="rate-select" value={filtroReporteEstado} onChange={(e) => setFiltroReporteEstado(e.target.value)}>
+                    <option value="TODOS">Todos los Estados</option>
+                    <option value="Activa">Activa</option>
+                    <option value="Borrador">Borrador</option>
+                  </select>
+                </label>
+
+                <label className="rate-form-group">
+                  <span className="rate-label">Habitación / Tipo</span>
+                  <select className="rate-select" value={filtroReporteHabitacion} onChange={(e) => setFiltroReporteHabitacion(e.target.value)}>
+                    <option value="">Habitación: Todas</option>
+                    {tiposHabitacion.map((t) => (
+                      <option key={t.id_tipo_habitacion} value={t.nombre_tipo}>{t.nombre_tipo}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="rate-form-group">
+                  <span className="rate-label">Temporada</span>
+                  <select className="rate-select" value={filtroReporteTemporada} onChange={(e) => setFiltroReporteTemporada(e.target.value)}>
+                    <option value="">Temporada: Todas</option>
+                    {temporadas.map((temp) => (
+                      <option key={temp.id_temporada} value={temp.id_temporada}>{temp.nombre_temporada}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="rate-form-group">
+                  <span className="rate-label">Criterio de Búsqueda</span>
+                  <input type="text" className="rate-input" placeholder="Buscar por tarifa o código..." value={filtroReporteBusqueda} onChange={(e) => setFiltroReporteBusqueda(e.target.value)} />
+                </label>
+
+                <label className="rate-form-group">
+                  <span className="rate-label">Formato de Salida</span>
+                  <div className="reporte-format-buttons">
+                    <button type="button" className={`btn-action-cancel reporte-format-btn ${formatoReporte === 'EXCEL' ? 'btn-action-create' : ''}`} onClick={() => setFormatoReporte('EXCEL')}>Excel</button>
+                    <button type="button" className={`btn-action-cancel reporte-format-btn ${formatoReporte === 'PDF' ? 'btn-action-create' : ''}`} onClick={() => setFormatoReporte('PDF')}>PDF</button>
+                    <button type="button" className={`btn-action-cancel reporte-format-btn ${formatoReporte === 'CORREO' ? 'btn-action-create' : ''}`} onClick={() => setFormatoReporte('CORREO')}>Correo</button>
+                  </div>
+                </label>
+
+                {formatoReporte === 'CORREO' && (
+                  <label className="rate-form-group">
+                    <span className="rate-label">Correo Destinatario *</span>
+                    <input type="email" className="rate-input" placeholder="ejemplo@correo.com" value={correoDestino} onChange={(e) => setCorreoDestino(e.target.value)} required />
+                  </label>
+                )}
+              </section>
+            </section>
+
+            <footer className="modal-figma-footer">
+              <button type="button" className="btn-action-cancel" onClick={() => setModalReporteAbierto(false)}>Cancelar</button>
+              {formatoReporte === 'EXCEL' && (
+                <button type="button" className="btn-action-create" onClick={exportarExcelTarifas}>Descargar Excel</button>
+              )}
+              {formatoReporte === 'PDF' && (
+                <button type="button" className="btn-action-create" onClick={exportarReportePDFTarifas}>Descargar PDF</button>
+              )}
+              {formatoReporte === 'CORREO' && (
+                <button type="button" className="btn-action-create" onClick={enviarReportePorCorreoTarifas} disabled={enviandoCorreo}>
+                  {enviandoCorreo ? 'Enviando...' : 'Enviar Reporte por Correo'}
+                </button>
+              )}
+            </footer>
+          </article>
+        </section>
+      )}
+      
       {/* MODAL GESTIÓN DE TEMPORADAS (CREAR Y ELIMINAR TEMPORADAS) */}
       {modalTemporadaAbierto && (
         <section className="modal-overlay" onClick={() => setModalTemporadaAbierto(false)}>
