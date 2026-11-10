@@ -1,0 +1,11 @@
+services:
+  frontend:
+    build:
+      context: ./frontend-hotel
+    container_name: hotel-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    environment:
+      # Opcional: define aquí o al ejecutar para cambiar la URL del backend sin reconstruir la imagen
+      VITE_API_URL: ${VITE_API_URL:-}
