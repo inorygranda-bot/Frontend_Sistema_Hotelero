@@ -442,7 +442,7 @@ export default function Reservas() {
     try {
       const [respReservas, respTelegram, respHuespedes, respHabitaciones, respRecargos, respTemporadas, respTarifas, respBcv] = await Promise.all([
         fetch(API_RESERVAS_URL).catch(() => ({ ok: false })),
-        fetch(API_RESERVAS_TELEGRAM_URL).catch(() => ({ ok: false })),
+        fetch(`${API_RESERVAS_TELEGRAM_URL}/listar`).catch(() => ({ ok: false })),
         fetch(API_HUESPEDES_URL).catch(() => ({ ok: false })),
         fetch(API_HABITACIONES_URL).catch(() => ({ ok: false })),
         fetch(API_RECARGOS_URL).catch(() => ({ ok: false })),
