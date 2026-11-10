@@ -4,15 +4,16 @@ import '../../estilos/habitaciones.css';
 import XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { API_BASE_URL } from '../../config/api';
 
-const API_RESERVAS_URL = 'http://localhost:3000/api/reservas';
-const API_RESERVAS_TELEGRAM_URL = 'http://localhost:3000/api/reservas/telegram';
-const API_HUESPEDES_URL = 'http://localhost:3000/api/huespedes';
-const API_HABITACIONES_URL = 'http://localhost:3000/api/habitaciones';
-const API_RECARGOS_URL = 'http://localhost:3000/api/recargos';
-const API_TEMPORADAS_URL = 'http://localhost:3000/api/tarifas/temporadas';
-const API_TARIFAS_URL = 'http://localhost:3000/api/tarifas';
-const API_TASA_BCV_URL = 'http://localhost:3000/api/tarifas/tasa-bcv';
+const API_RESERVAS_URL = `${API_BASE_URL}/api/reservas`;
+const API_RESERVAS_TELEGRAM_URL = `${API_BASE_URL}/api/reservas/telegram`;
+const API_HUESPEDES_URL = `${API_BASE_URL}/api/huespedes`;
+const API_HABITACIONES_URL = `${API_BASE_URL}/api/habitaciones`;
+const API_RECARGOS_URL = `${API_BASE_URL}/api/recargos`;
+const API_TEMPORADAS_URL = `${API_BASE_URL}/api/tarifas/temporadas`;
+const API_TARIFAS_URL = `${API_BASE_URL}/api/tarifas`;
+const API_TASA_BCV_URL = `${API_BASE_URL}/api/tarifas/tasa-bcv`;
 
 export default function Reservas() {
 
@@ -768,7 +769,7 @@ export default function Reservas() {
         nueva_fecha_checkin: formDataCheckin.advertenciaFecha ? formDataCheckin.nuevaFechaCheckin : null
       };
 
-      const respuesta = await fetch(`http://localhost:3000/api/reservas/${reservaParaCheckin.codigo_reserva}/checkin`, {
+      const respuesta = await fetch(`${API_RESERVAS_URL}/${reservaParaCheckin.codigo_reserva}/checkin`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

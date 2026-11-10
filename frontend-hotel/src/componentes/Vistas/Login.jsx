@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import '../../estilos/login.css';
+import { API_BASE_URL } from '../../config/api';
 
-const API_LOGIN_URL = 'http://localhost:3000/api/usuarios/login';
+const API_LOGIN_URL = `${API_BASE_URL}/api/usuarios/login`;
 
 export default function Login({ onIniciarSesion }) {
   const [correo, setCorreo] = useState('');

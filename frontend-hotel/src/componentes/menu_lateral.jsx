@@ -1,4 +1,5 @@
 import React from 'react';
+import { API_BASE_URL } from '../config/api';
 import '../estilos/menu_lateral.css';
 
 export default function MenuLateral({ colapsado, vistaActual, setVistaActual, cerrarSesion, usuario }) {
@@ -12,7 +13,7 @@ export default function MenuLateral({ colapsado, vistaActual, setVistaActual, ce
     e.preventDefault();
     try {
       if (usuario?.id_usuario) {
-        await fetch('http://localhost:3000/api/usuarios/logout', {
+        await fetch(`${API_BASE_URL}/api/usuarios/logout`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id_usuario: usuario.id_usuario })

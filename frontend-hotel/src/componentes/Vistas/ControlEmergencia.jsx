@@ -3,6 +3,9 @@ import '../../estilos/control_emergencia.css';
 import XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { API_BASE_URL } from '../../config/api';
+
+const API_EMERGENCIA_URL = `${API_BASE_URL}/api/emergencia`;
 
 export default function ControlEmergencia({ usuario }) {
 
@@ -29,13 +32,13 @@ export default function ControlEmergencia({ usuario }) {
   const sincronizarSistema = async () => {
     setCargandoDatos(true);
     try {
-      const respEstado = await fetch('http://localhost:3000/api/emergencia/estado');
+      const respEstado = await fetch(`${API_EMERGENCIA_URL}/estado`);
       if (respEstado.ok) {
         const datosEstado = await respEstado.json();
         setEstadoEmergencia(datosEstado.estado || 'NORMAL');
       }
 
-      const respHuespedes = await fetch('http://localhost:3000/api/emergencia/activos');
+      const respHuespedes = await fetch(`${API_EMERGENCIA_URL}/activos`);
       if (respHuespedes.ok) {
         const datosHuespedes = await respHuespedes.json();
         setHuespedesActivos(Array.isArray(datosHuespedes) ? datosHuespedes.map(h => ({ ...h, seguro: false })) : []);
@@ -172,7 +175,7 @@ export default function ControlEmergencia({ usuario }) {
 
     setEnviandoCorreo(true);
     try {
-      const respuesta = await fetch('http://localhost:3000/api/emergencia/reporte/correo', {
+      const respuesta = await fetch(`${API_EMERGENCIA_URL}/reporte/correo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -205,7 +208,7 @@ export default function ControlEmergencia({ usuario }) {
     }
 
     try {
-      const respuesta = await fetch('http://localhost:3000/api/emergencia/activar', {
+      const respuesta = await fetch(`${API_EMERGENCIA_URL}/activar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -239,7 +242,7 @@ export default function ControlEmergencia({ usuario }) {
 
   const desactivarAlerta = async () => {
     try {
-      const respuesta = await fetch('http://localhost:3000/api/emergencia/desactivar', {
+      const respuesta = await fetch(`${API_EMERGENCIA_URL}/desactivar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_usuario: usuario?.id_usuario || 1 })
@@ -274,7 +277,7 @@ export default function ControlEmergencia({ usuario }) {
     );
 
     try {
-      await fetch('http://localhost:3000/api/emergencia/marcar-seguro', {
+      await fetch(`${API_EMERGENCIA_URL}/marcar-seguro`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -291,7 +294,7 @@ export default function ControlEmergencia({ usuario }) {
   const enviarMensajeMasivo = async () => {
     setEnviandoMensaje(true);
     try {
-      const respuesta = await fetch('http://localhost:3000/api/emergencia/mensaje-masivo', {
+      const respuesta = await fetch(`${API_EMERGENCIA_URL}/mensaje-masivo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

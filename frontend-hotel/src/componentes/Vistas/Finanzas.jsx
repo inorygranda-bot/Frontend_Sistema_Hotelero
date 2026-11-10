@@ -4,12 +4,13 @@ import '../../estilos/huespedes.css';
 import '../../estilos/habitaciones.css';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { API_BASE_URL } from '../../config/api';
 
-const API_RECARGOS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/recargos';
-const API_PAGOS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/pagos';
-const API_RESERVAS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/reservas';
-const API_BANCOS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/bancos';
-const API_TASA_BCV_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/tarifas/tasa-bcv';
+const API_RECARGOS_URL = `${API_BASE_URL}/api/recargos`;
+const API_PAGOS_URL = `${API_BASE_URL}/api/pagos`;
+const API_RESERVAS_URL = `${API_BASE_URL}/api/reservas`;
+const API_BANCOS_URL = `${API_BASE_URL}/api/bancos`;
+const API_TASA_BCV_URL = `${API_BASE_URL}/api/tarifas/tasa-bcv`;
 
 export default function Finanzas({ usuario }) {
     const [pestannaActiva, setPestannaActiva] = useState('RECARGOS'); // 'RECARGOS', 'PAGOS' o 'BANCOS'

@@ -3,9 +3,10 @@ import XLSX from 'xlsx-js-style';
 import '../../estilos/habitaciones.css';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { API_BASE_URL } from '../../config/api';
 
-const API_HABITACIONES_URL = 'http://localhost:3000/api/habitaciones';
-const API_TIPOS_URL = 'http://localhost:3000/api/tipos-habitacion';
+const API_HABITACIONES_URL = `${API_BASE_URL}/api/habitaciones`;
+const API_TIPOS_URL = `${API_BASE_URL}/api/tipos-habitacion`;
 
 export default function Habitaciones() {
 

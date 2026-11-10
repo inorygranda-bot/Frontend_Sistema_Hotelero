@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import '../../estilos/huespedes.css';
 import XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable'; 
+import autoTable from 'jspdf-autotable';
+import { API_BASE_URL } from '../../config/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/huespedes';
+const API_URL = `${API_BASE_URL}/api/huespedes`;
 
 export default function Huespedes() {
 

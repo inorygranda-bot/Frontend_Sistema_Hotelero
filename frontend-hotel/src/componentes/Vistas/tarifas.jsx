@@ -3,6 +3,7 @@ import XLSX from 'xlsx-js-style';
 import '../../estilos/tarifas.css';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { API_BASE_URL } from '../../config/api';
 
 const IconSvg = ({ children, size = 18, color = 'currentColor', className = '' }) => (
   <svg
@@ -47,8 +48,8 @@ const FileSpreadsheet = (p) => (
   </IconSvg>
 );
 
-const API_BASE = 'http://localhost:3000/api/tarifas';
-const API_TEMPORADAS_BASE = 'http://localhost:3000/api/temporadas';
+const API_BASE = `${API_BASE_URL}/api/tarifas`;
+const API_TEMPORADAS_BASE = `${API_BASE_URL}/api/temporadas`;
 
 export default function Tarifas() {
 
@@ -378,8 +379,8 @@ export default function Tarifas() {
         fetch(API_BASE),
         fetch(`${API_BASE}/tipos-habitacion`),
         fetch(`${API_BASE}/temporadas`),
-        fetch('http://localhost:3000/api/habitaciones').catch(() => null),
-        fetch('http://localhost:3000/api/reservas').catch(() => null)
+        fetch(`${API_BASE_URL}/api/habitaciones`).catch(() => null),
+        fetch(`${API_BASE_URL}/api/reservas`).catch(() => null)
       ]);
 
       if (!resTarifas.ok || !resTipos.ok || !resTemp.ok) {

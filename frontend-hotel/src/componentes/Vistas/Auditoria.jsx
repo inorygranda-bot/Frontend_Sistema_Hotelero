@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import '../../estilos/huespedes.css';
 import '../../estilos/auditoria.css';
+import { API_BASE_URL } from '../../config/api';
 
-const API_AUDITORIA_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/auditoria';
+const API_AUDITORIA_URL = `${API_BASE_URL}/api/auditoria`;
 
 export default function Auditoria() {
   const [registrosAuditoria, setRegistrosAuditoria] = useState([]);
