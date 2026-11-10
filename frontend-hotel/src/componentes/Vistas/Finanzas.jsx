@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import XLSX from 'xlsx-js-style';
 import '../../estilos/huespedes.css';
 import '../../estilos/habitaciones.css';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const API_RECARGOS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/recargos';
 const API_PAGOS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/pagos';
@@ -13,6 +15,11 @@ export default function Finanzas({ usuario }) {
     const [pestannaActiva, setPestannaActiva] = useState('RECARGOS'); // 'RECARGOS', 'PAGOS' o 'BANCOS'
 
     const [bcvRate, setBcvRate] = useState(872.39);
+
+    const [modalReporteAbierto, setModalReporteAbierto] = useState(false);
+    const [formatoReporte, setFormatoReporte] = useState('EXCEL'); // 'EXCEL' | 'PDF' | 'CORREO'
+    const [correoDestino, setCorreoDestino] = useState('');
+    const [enviandoCorreo, setEnviandoCorreo] = useState(false);
 
     // --- ESTADOS DE RECARGOS ---
     const [recargos, setRecargos] = useState([]);
@@ -66,6 +73,117 @@ export default function Finanzas({ usuario }) {
     const [reservaSeleccionadaHistorial, setReservaSeleccionadaHistorial] = useState(null);
 
     const [alerta, setAlerta] = useState({ abierto: false, tipo: 'exito', titulo: '', mensaje: '', accionConfirmar: null });
+
+    const exportarReportePDFFinanzas = () => {
+        const pagosParaExportar = pagosFiltrados;
+        if (!pagosParaExportar || pagosParaExportar.length === 0) {
+            setAlerta({ abierto: true, tipo: 'error', titulo: 'Sin transacciones', mensaje: 'No hay datos para generar el PDF con los filtros seleccionados.' });
+            return;
+        }
+
+        try {
+            const doc = new jsPDF();
+            const hoy = new Date();
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.setTextColor(30, 58, 138);
+            doc.text("SISTEMA HOTELERO — INFORME DE INGRESOS Y PAGOS", 14, 20);
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            doc.setTextColor(100, 116, 139);
+            doc.text(`Fecha: ${hoy.toLocaleDateString('es-VE')} | Método: [${filtroMetodoPago}] | Moneda: [${filtroMonedaPago}] | Estado: [${filtroEstadoPago}]`, 14, 26);
+
+            const totalTransacciones = pagosParaExportar.length;
+            const montoTotalUSD = pagosParaExportar.reduce((acc, p) => {
+                const equiv = p.moneda === 'VES' ? Number(p.monto) / bcvRate : Number(p.monto);
+                return acc + equiv;
+            }, 0);
+
+            doc.setDrawColor(203, 213, 225);
+            doc.setFillColor(248, 250, 252);
+            doc.roundedRect(14, 32, 182, 16, 2, 2, 'FD');
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.setTextColor(15, 23, 42);
+            doc.text(`Transacciones Filtradas: ${totalTransacciones}`, 18, 42);
+            doc.text(`Monto Consolidado: $${montoTotalUSD.toFixed(2)} USD`, 110, 42);
+
+            const headers = [['ID Pago', 'N° Reserva', 'Huésped', 'Método', 'Moneda', 'Monto Original']];
+            const rows = pagosParaExportar.map(p => [
+                `#PAG-${p.id_pago}`,
+                `N° ${p.codigo_reserva}`,
+                p.nombre_huesped || 'N/A',
+                p.metodo_pago,
+                p.moneda,
+                `$${Number(p.monto).toFixed(2)}`
+            ]);
+
+            autoTable(doc, {
+                startY: 54,
+                head: headers,
+                body: rows,
+                theme: 'grid',
+                headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
+                styles: { fontSize: 9, cellPadding: 4 }
+            });
+
+            doc.save(`Reporte_Ingresos_Finanzas_${hoy.toISOString().slice(0, 10)}.pdf`);
+            setModalReporteAbierto(false);
+
+            setAlerta({
+                abierto: true,
+                tipo: 'exito',
+                titulo: '¡PDF Generado!',
+                mensaje: 'El informe en PDF se descargó aplicando los filtros del sistema.'
+            });
+        } catch (err) {
+            setAlerta({ abierto: true, tipo: 'error', titulo: 'Error al generar PDF', mensaje: err.message });
+        }
+    };
+
+    const enviarReportePorCorreoFinanzas = async () => {
+        if (!correoDestino || !correoDestino.trim()) {
+            setAlerta({ abierto: true, tipo: 'error', titulo: 'Correo Requerido', mensaje: 'Escriba una dirección de correo válida.' });
+            return;
+        }
+
+        setEnviandoCorreo(true);
+        try {
+            const respuesta = await fetch(`${API_PAGOS_URL}/reporte/correo`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    correo_destino: correoDestino,
+                    metodo_pago: filtroMetodoPago,
+                    moneda: filtroMonedaPago,
+                    banco: filtroBancoPago,
+                    estado: filtroEstadoPago,
+                    fecha_desde: fechaDesdePago,
+                    fecha_hasta: fechaHastaPago,
+                    busqueda: busquedaPago
+                })
+            });
+
+            const resData = await respuesta.json();
+            if (!respuesta.ok) throw new Error(resData.mensaje || 'Error al enviar el correo.');
+
+            setModalReporteAbierto(false);
+            setCorreoDestino('');
+            setAlerta({
+                abierto: true,
+                tipo: 'exito',
+                titulo: '¡Correo Despachado!',
+                mensaje: 'El reporte financiero con los filtros aplicados fue enviado con éxito.'
+            });
+        } catch (err) {
+            setAlerta({ abierto: true, tipo: 'error', titulo: 'Error de Envío', mensaje: err.message });
+        } finally {
+            setEnviandoCorreo(false);
+        }
+    };
 
     const cargarDatosGenerales = async () => {
         try {
@@ -845,7 +963,10 @@ export default function Finanzas({ usuario }) {
                             )}
                         </section>
                         <section className="grupo-acciones-barra">
-                            <button type="button" className="btn-export-excel" onClick={exportarExcelFinanzas}>
+                            <button
+                                type="button"
+                                className="btn-export-excel"
+                                onClick={() => setModalReporteAbierto(true)}>
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     width="16"
@@ -856,6 +977,7 @@ export default function Finanzas({ usuario }) {
                                     strokeWidth="2"
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
+
                                 >
                                     <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
                                     <path d="M14 2v4a2 2 0 0 0 2 2h4" />
@@ -864,7 +986,8 @@ export default function Finanzas({ usuario }) {
                                     <path d="M8 17h2" />
                                     <path d="M14 17h2" />
                                 </svg>
-                                <span>Exportar Excel ({pagosFiltrados.length})</span>
+
+                                <span>Exportar Reporte</span>
                             </button>
                             <button type="button" className="boton-agregar" onClick={() => { setFormDataPago(estadoInicialPago); setModalPagoAbierto(true); }}>
                                 <span>+ Registrar Pago</span>
@@ -1168,6 +1291,177 @@ export default function Finanzas({ usuario }) {
                                 <button type="submit" className="boton-guardar" disabled={guardandoPago}>Registrar Transacción</button>
                             </footer>
                         </form>
+                    </article>
+                </aside>
+            )}
+
+            {modalReporteAbierto && (
+                <aside className="overlay-modal" onClick={() => setModalReporteAbierto(false)}>
+                    <article className="contenido-modal modal-detalle" onClick={(e) => e.stopPropagation()}>
+                        <header className="encabezado-modal">
+                            <h2 className="titulo-modal">Generador de Reportes — Pagos y Transacciones</h2>
+                            <button type="button" className="boton-cerrar-modal" onClick={() => setModalReporteAbierto(false)}>
+                                &times;
+                            </button>
+                        </header>
+
+                        <section className="cuerpo-modal-reporte">
+                            <p className="texto-descripcion-reporte">
+                                Configure los filtros activos y el formato de salida deseado para el arqueo financiero.
+                            </p>
+
+                            <section className="contenedor-kpis-resumen">
+                                <article className="tarjeta-kpi-mini">
+                                    <span className="kpi-titulo-mini">Transacciones en Vista</span>
+                                    <strong className="kpi-valor-mini">{pagosFiltrados.length}</strong>
+                                </article>
+                                <article className="tarjeta-kpi-mini">
+                                    <span className="kpi-titulo-mini">Filtro de Estado</span>
+                                    <strong className="kpi-valor-mini">{filtroEstadoPago}</strong>
+                                </article>
+                            </section>
+
+                            <fieldset className="grupo-campos">
+                                <label className="campo medio">
+                                    <span className="label-texto">Método de Pago</span>
+                                    <select
+                                        className="select-filtro"
+                                        value={filtroMetodoPago}
+                                        onChange={(e) => setFiltroMetodoPago(e.target.value)}
+                                    >
+                                        <option value="TODOS">Todos</option>
+                                        <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                                        <option value="Pago Móvil">Pago Móvil</option>
+                                        <option value="Zelle">Zelle</option>
+                                        <option value="Efectivo">Efectivo</option>
+                                        <option value="Tarjeta">Tarjeta</option>
+                                    </select>
+                                </label>
+
+                                <label className="campo medio">
+                                    <span className="label-texto">Moneda</span>
+                                    <select
+                                        className="select-filtro"
+                                        value={filtroMonedaPago}
+                                        onChange={(e) => setFiltroMonedaPago(e.target.value)}
+                                    >
+                                        <option value="TODAS">Todas</option>
+                                        <option value="USD">USD ($)</option>
+                                        <option value="VES">Bolívares (VES)</option>
+                                    </select>
+                                </label>
+
+                                <label className="campo medio">
+                                    <span className="label-texto">Estado de Cuenta</span>
+                                    <select
+                                        className="select-filtro"
+                                        value={filtroEstadoPago}
+                                        onChange={(e) => setFiltroEstadoPago(e.target.value)}
+                                    >
+                                        <option value="TODOS">Todos</option>
+                                        <option value="Pagado">Pagado</option>
+                                        <option value="Parcial">Parcial</option>
+                                        <option value="Pendiente">Pendiente</option>
+                                    </select>
+                                </label>
+
+                                <label className="campo medio">
+                                    <span className="label-texto">Banco Destino</span>
+                                    <select
+                                        className="select-filtro"
+                                        value={filtroBancoPago}
+                                        onChange={(e) => setFiltroBancoPago(e.target.value)}
+                                    >
+                                        <option value="TODOS">Todos</option>
+                                        {bancos.map((b) => (
+                                            <option key={b.id_banco} value={b.nombre_banco}>{b.nombre_banco}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                                {/* ========================================================== */}
+
+                                <label className="campo ancho-completo">
+                                    <span className="label-texto">Formato de Salida</span>
+                                    <section className="grupo-opciones-reporte">
+                                        <button
+                                            type="button"
+                                            className={`boton-opcion-formato ${formatoReporte === 'EXCEL' ? 'activo' : ''}`}
+                                            onClick={() => setFormatoReporte('EXCEL')}
+                                        >
+                                            Excel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`boton-opcion-formato ${formatoReporte === 'PDF' ? 'activo' : ''}`}
+                                            onClick={() => setFormatoReporte('PDF')}
+                                        >
+                                            PDF
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`boton-opcion-formato ${formatoReporte === 'CORREO' ? 'activo' : ''}`}
+                                            onClick={() => setFormatoReporte('CORREO')}
+                                        >
+                                            Correo
+                                        </button>
+                                    </section>
+                                </label>
+
+                                {formatoReporte === 'CORREO' && (
+                                    <label className="campo ancho-completo">
+                                        <span className="label-texto">Correo Destinatario *</span>
+                                        <input
+                                            type="email"
+                                            className="input-reporte-texto"
+                                            placeholder="ejemplo@correo.com"
+                                            value={correoDestino}
+                                            onChange={(e) => setCorreoDestino(e.target.value)}
+                                        />
+                                    </label>
+                                )}
+                            </fieldset>
+                        </section>
+
+                        <footer className="acciones-modal-detalle">
+                            <button
+                                type="button"
+                                className="boton-cancelar"
+                                onClick={() => setModalReporteAbierto(false)}
+                            >
+                                Cancelar
+                            </button>
+
+                            <section className="contenedor-accion-principal">
+                                {formatoReporte === 'EXCEL' && (
+                                    <button
+                                        type="button"
+                                        className="btn-export-excel boton-ancho-completo"
+                                        onClick={exportarExcelFinanzas}
+                                    >
+                                        Descargar Excel
+                                    </button>
+                                )}
+                                {formatoReporte === 'PDF' && (
+                                    <button
+                                        type="button"
+                                        className="btn-export-pdf boton-ancho-completo"
+                                        onClick={exportarReportePDFFinanzas}
+                                    >
+                                        Descargar PDF
+                                    </button>
+                                )}
+                                {formatoReporte === 'CORREO' && (
+                                    <button
+                                        type="button"
+                                        className="btn-enviar-correo boton-ancho-completo"
+                                        onClick={enviarReportePorCorreoFinanzas}
+                                        disabled={enviandoCorreo}
+                                    >
+                                        {enviandoCorreo ? 'Enviando...' : 'Enviar Reporte por Correo'}
+                                    </button>
+                                )}
+                            </section>
+                        </footer>
                     </article>
                 </aside>
             )}
